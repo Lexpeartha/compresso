@@ -1,8 +1,20 @@
 //
-// Created by aleksa on 4/24/23.
+// Created by harry on 4/24/23.
 //
 
-#ifndef COMPRESSO_HUFFMAN_H
-#define COMPRESSO_HUFFMAN_H
+#ifndef SPECIJALNAGRUPA_MAIN_H
+#define SPECIJALNAGRUPA_MAIN_H
 
-#endif //COMPRESSO_HUFFMAN_H
+#define MAX_LENGTH 500
+#define MAX_CHILDREN 100
+
+struct Node {
+    struct Node * parent;
+    struct Node * children[MAX_CHILDREN];
+    int childrenCount;
+
+    int index;
+    int weight;
+};
+
+#endif //SPECIJALNAGRUPA_MAIN_H
