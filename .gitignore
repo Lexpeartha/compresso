@@ -1,0 +1,28 @@
+# Ignore object files and executables
+*.o
+*.out
+*.exe
+
+# Ignore build directories
+build/
+cmake-build-debug/
+
+# Ignore dependency files
+*.d
+
+# Ignore system-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore editor files
+*.swp
+*.swo
+*.swn
+
+# Ignore user-specific files
+*.log
+*.cache
+*.session
+
+# Ignore config files
+config.ini
