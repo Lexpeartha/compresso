@@ -1,3 +1,6 @@
-//
-// Created by aleksa on 4/24/23.
-//
+#include <stdio.h>
+
+int cli_main() {
+    printf("Running CLI...\n");
+    return 0;
+}
