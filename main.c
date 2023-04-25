@@ -1,7 +1,12 @@
-#include <stdio.h>
+#include "cli/cli_utils.h"
+#include "ui/ui_utils.h"
 
 int main() {
-    // TODO: work in progress...
-    printf("Hello, World!\n");
+#ifdef USE_CLI
+    cli_main();
+#else
+    ui_main();
+#endif
+
     return 0;
 }
