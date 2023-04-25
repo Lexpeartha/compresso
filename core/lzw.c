@@ -58,7 +58,7 @@ int* compress_lzw(char* inputFileName){
     long file_size;
     if(fp == NULL) {
         printf("ERROR OPENING FILE\n");
-        return;
+        return NULL;
     }
 
     int string = fgetc(fp);
