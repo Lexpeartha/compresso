@@ -15,7 +15,7 @@ int cli_main(int argc, char *argv[]) {
             // Detecting help command will print help info and finish the program
             // Makes flag queue irrelevant
             command = HELP;
-            printf("Usage: ./compresso [cmd] [options]\n", argv[0]);
+            printf("Usage: ./compresso [cmd] [options]\n");
             printf("Options:\n");
             printf("  --help, -h    Display this help message\n");
             printf("  --about, -a   Display information about this program\n");
