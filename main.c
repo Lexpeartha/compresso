@@ -1,12 +1,12 @@
 #include "cli/cli_utils.h"
 #include "ui/ui_utils.h"
 
-int main() {
-#ifdef USE_CLI
-    cli_main();
-#else
+int main(int argc, char *argv[]) {
+    #ifdef USE_CLI
+    cli_main(argc, argv);
+    #else
     ui_main();
-#endif
+    #endif
 
     return 0;
 }

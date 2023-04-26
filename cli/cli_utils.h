@@ -1,10 +1,39 @@
 #ifndef COMPRESSO_CLI_UTILS_H
 #define COMPRESSO_CLI_UTILS_H
 
-// MAIN
-int cli_main();
+/*
+ *
+ * Header file containing definitions for all
+ * structures and functions used in `cli` folder
+ *
+*/
 
-// UTILS
+
+/* DEFINITIONS FOR MAIN FILE */
+
+/// @brief Enum representing all possible commands
+typedef enum command_code_e {
+    HELP = 0,
+    VERSION,
+    ABOUT,
+    COMPRESS,
+    DECOMPRESS,
+    UNKNOWN
+} command_code;
+
+/// @brief Function to check if passed input is a valid command
+/// @param input String to check
+/// @param cmd_name Main name of the command
+/// @param cmd_aliases_len Number of aliases for the command
+/// @param cmd_aliases Array of aliases for the command
+/// @return Returns 1 if input is a valid command, 0 otherwise
+int command_check(char* input, char* cmd_name, int cmd_aliases_len, char* cmd_aliases[cmd_aliases_len]);
+
+/// @brief Main function for CLI
+int cli_main(int argc, char *argv[]);
+
+/* DEFINITIONS FOR CLI UTILS FILES */
+
 // empty for now
 
-#endif //COMPRESSO_CLI_UTILS_H
+#endif
