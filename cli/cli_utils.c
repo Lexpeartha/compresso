@@ -17,3 +17,19 @@ int command_check(char* input, char* cmd_name, int cmd_aliases_len, char* cmd_al
 
     return 0;
 }
+
+int compress(char* target_file, flag* flags, unsigned int flags_num) {
+    printf("Compressing file %s\n", target_file);
+    for (int i = 0; i < flags_num; i++) {
+        printf("Flag %d: %d, %s\n", i, flags[i].code, flags[i].parameter);
+    }
+    return 0;
+}
+
+int decompress(char* target_file, flag* flags, unsigned int flags_num) {
+    printf("Decompressing file %s\n", target_file);
+    for (int i = 0; i < flags_num; i++) {
+        printf("Flag %d: %d, %s\n", i, flags[i].code, flags[i].parameter);
+    }
+    return 0;
+}
