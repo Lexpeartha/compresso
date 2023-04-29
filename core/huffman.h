@@ -8,13 +8,24 @@
 #define MAX_LENGTH 500
 #define MAX_CHILDREN 100
 
-struct Node {
+typedef struct {
     struct Node * parent;
-    struct Node * children[MAX_CHILDREN];
-    int childrenCount;
+    struct Node * left_child;
+    struct Node * right_child;
 
-    int index;
-    int weight;
-};
+    int data;
+    int frequency;
+} Node;
+
+typedef struct {
+    int * arr;
+    int len;
+} array;
+
+typedef struct {
+    int * arr;
+    int * data;
+    int len;
+} Heap;
 
 #endif //SPECIJALNAGRUPA_MAIN_H
