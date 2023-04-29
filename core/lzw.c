@@ -219,5 +219,5 @@ void decompress(char* input_file_name, char *output_file_name){
 
     free_array(tmp_arr);
     free_dictionary(dict);
-    //remove(input_file_name);
+    remove(input_file_name);
 }
