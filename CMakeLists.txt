@@ -3,5 +3,22 @@ project(compresso C)
 
 set(CMAKE_C_STANDARD 11)
 
-add_executable(compresso main.c cli/cli_utils.c cli/cli_utils.h cli/main.c core/huffman.c core/huffman.h core/lzw.c core/lzw.h core/compression.c core/compression.h ui/main.c ui/ui_utils.c ui/ui_utils.h)
+include_directories("cli/")
+include_directories("core/")
+include_directories("ui/")
+
+file(GLOB files CONFIGURE_DEPENDS
+        "*.h"
+        "*.c"
+        "cli/*.h"
+        "cli/*.c"
+        "core/*.h"
+        "core/*.c"
+        "ui/*.h"
+        "ui/*.c"
+        )
+
+
+add_executable(compresso ${files})
+
 add_definitions(-DUSE_CLI -DUSE_UI)
