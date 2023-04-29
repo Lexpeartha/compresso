@@ -6,45 +6,35 @@
 #define COMPRESSO_LZW_H
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include<string.h>
-
+#include <stdint.h>
+#include <unistd.h>
 
 
 typedef struct{
-    int *arr;
-    int len;
-} array;
-
+    long int *arr;
+    long int len;
+}array;
 typedef struct{
-    unsigned int prefix;
-    unsigned int code;
-    unsigned int new_char;
-} dict_element;
-
+    long int prefix;
+    long int code;
+    long int new_char;
+}dict_element;
 typedef struct{
     dict_element *table;
-    int len;
-} dictionary;
+    long int len;
 
-int write_binary_file(const uint8_t *filename, const uint8_t *content, size_t size);
+}dictionary;
 
-int is_in_dict(dictionary *dict, unsigned int prefix, unsigned int new_char);
-
-void add_to_dict(dictionary *dict, unsigned int prefix, unsigned int new_char);
-
-int return_prefix(dictionary *dict, unsigned int code);
-
-int return_new_char(dictionary *dict, unsigned int code);
-
-array* print_string(dictionary *dict, unsigned int code);
-
-int return_first(dictionary *dict, unsigned int code);
-
-void array_extend(array *arr1, array *arr2);
-
-unsigned char* read_binary_file(const char* filename, size_t* size);
-
-array* compress_lzw(char* input_file_name);
-
+void generate_random_filename(char* filename_buffer);
+void free_dictionary(dictionary *dict);
+void free_array(array *a);
+long int is_in_dict(dictionary *dict, long int prefix, long int new_char);
+void add_to_dict(dictionary *dict,  long int prefix, long int new_char);
+long int return_prefix(dictionary *dict, long int code);
+long int return_new_char(dictionary *dict, long int code);
+array* print_string(dictionary *dict, long int code);
+long int return_first(dictionary *dict, long int code);
+char* compress_lzw(char* input_file_name);
+void decompress(char* input_file_name, char *output_file_name);
 #endif //COMPRESSO_LZW_H
