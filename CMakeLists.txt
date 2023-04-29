@@ -20,4 +20,5 @@ file(GLOB files CONFIGURE_DEPENDS
 
 
 add_executable(compresso ${files})
+
 add_definitions(-DUSE_CLI -DUSE_UI)
