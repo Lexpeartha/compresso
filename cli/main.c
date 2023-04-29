@@ -6,7 +6,7 @@
 
 int cli_main(int argc, char *argv[]) {
     // If not specified, by default the program will compress the file
-    command_code command = COMPRESS;
+    command_code command = UNKNOWN;
     // Flag vector to store all flags used in the command
     unsigned int flags_num = 0;
     flag* flags = calloc(0, sizeof(flag));
@@ -16,8 +16,16 @@ int cli_main(int argc, char *argv[]) {
     }
     // Whitelist of possible non-commands on which we don't want program to break
     char* cmd_exceptions[] = {"-DUSE_CLI", "-DUSE_UI"};
+    // Default file config path
+    const char* config_path = "compresso.cfg";
+    file_configuration* config = init_file_configuration_struct();
+    int error_while_reading = read_config_file(config_path, config);
 
-    // TODO: take care of mutually exclusive flags/commands
+    if (error_while_reading) {
+        printf("Failed to read config file\n");
+        exit(1);
+    }
+
     /* IMPORTANT FLAGS THAT SKIP REGULAR EXECUTION */
     for (int i = 1; i < argc; i++) {
         char* current_arg = argv[i];
@@ -55,9 +63,17 @@ int cli_main(int argc, char *argv[]) {
     for (int i = 2; i < argc; i++) {
         char *current_arg = argv[i];
         if (command_check(current_arg, "--compress", 1, (char*[]){"-c"})) {
+            if (command == DECOMPRESS) {
+                printf("Cannot use both --compress and --decompress flags\n");
+                exit(1);
+            }
             command = COMPRESS;
         }
         else if (command_check(current_arg, "--decompress", 1, (char*[]){"-d"})) {
+            if (command == COMPRESS) {
+                printf("Cannot use both --compress and --decompress flags\n");
+                exit(1);
+            }
             command = DECOMPRESS;
         }
         else if (command_check(current_arg, "--output", 1, (char*[]){"-o"})) {
@@ -68,9 +84,15 @@ int cli_main(int argc, char *argv[]) {
             }
             flags = tmp;
             flags[flags_num].code = OUTPUT;
-            flags[flags_num].parameter = argv[i + 1];
+            if (i + 1 > argc || verify_argument(argv[i + 1], "-")) {
+                // Place for argument is not found or it is a flag, so we use default config
+                flags[flags_num].parameter = config->output_path;
+            } else {
+                // If argument is found, we use that
+                flags[flags_num].parameter = argv[i + 1];
+                i++;
+            }
             flags_num++;
-            i++;
         }
         else if (command_check(current_arg, "--log", 1, (char*[]){"-l"})) {
             flag* tmp = realloc(flags, (flags_num + 1) * sizeof(flag));
@@ -80,10 +102,15 @@ int cli_main(int argc, char *argv[]) {
             }
             flags = tmp;
             flags[flags_num].code = LOG;
-            // TODO: make option for default file name (default configuration from file)
-            flags[flags_num].parameter = argv[i + 1];
+            if (i + 1 > argc || verify_argument(argv[i + 1], "-")) {
+                // Place for argument is not found or it is a flag, so we use default config
+                flags[flags_num].parameter = config->log_path;
+            } else {
+                // If argument is found, we use that
+                flags[flags_num].parameter = argv[i + 1];
+                i++;
+            }
             flags_num++;
-            i++;
         }
         // TODO: match wildcard symbols as valid input as well
         else {
@@ -103,6 +130,9 @@ int cli_main(int argc, char *argv[]) {
     }
 
     switch (command) {
+        case UNKNOWN:
+            printf("No valid command detected, skipping regular execution\n");
+            break;
         case COMPRESS:
             compress(target_file, flags, flags_num);
             break;
@@ -117,7 +147,10 @@ int cli_main(int argc, char *argv[]) {
             break;
     }
 
+    update_config_file(config_path, config);
+
     free(flags);
+    free_file_configuration_struct(config);
 
     return 0;
 }
