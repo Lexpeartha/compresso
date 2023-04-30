@@ -178,6 +178,7 @@ void print_heap(Heap * heap){
     for(int i = 0; i < heap->len; i++){
         printf("%d (%c) ", heap->nodes[i].frequency, heap->nodes[i].data);
     }
+
 }
 
 int start() {
