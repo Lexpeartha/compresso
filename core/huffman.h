@@ -9,23 +9,27 @@
 #define MAX_CHILDREN 100
 
 typedef struct {
-    struct Node * parent;
-    struct Node * left_child;
-    struct Node * right_child;
-
-    int data;
     int frequency;
-} Node;
+    int data;
+    struct HeapNode * left_child;
+    struct HeapNode * right_child;
+} HeapNode;
+
+typedef struct {
+    int data;
+    int huffman_code;
+} Dictionary;
+
+typedef struct {
+    HeapNode * nodes;
+    int len;
+} Heap;
 
 typedef struct {
     int * arr;
     int len;
 } array;
 
-typedef struct {
-    int * arr;
-    int * data;
-    int len;
-} Heap;
+
 
 #endif //SPECIJALNAGRUPA_MAIN_H
