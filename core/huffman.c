@@ -73,6 +73,11 @@ Heap * form_min_heap(array * frequencies, array * data) {
 }
 
 
+int node_is_leaf(HeapNode * node){
+    if (!node->left_child && !node->right_child) return 1;
+    else return 0;
+}
+
 void heapify(Heap * heap, int index){
     int left_index = heap_left_child(index);
     int right_index = heap_right_child(index);
@@ -130,6 +135,13 @@ HeapNode * static_huffman(Heap * heap){
         HeapNode * left = extract_min(heap);
         HeapNode * right = extract_min(heap);
 
+        // ako je levi čvor list, a desni nije, moraju da se zamene
+        if(node_is_leaf(left) && !node_is_leaf(right)){
+            HeapNode * temp = left;
+            left = right;
+            right = temp;
+        }
+
         HeapNode * internal_node = malloc(sizeof(HeapNode));
         internal_node->left_child = (struct HeapNode *) left;
         internal_node->right_child = (struct HeapNode *) right;
@@ -140,11 +152,6 @@ HeapNode * static_huffman(Heap * heap){
     }
 
     return extract_min(heap);
-}
-
-int node_is_leaf(HeapNode * node){
-    if (!node->left_child && !node->right_child) return 1;
-    else return 0;
 }
 
 int get_huffman_codes(HeapNode * node, int counter, int code[]){
