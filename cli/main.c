@@ -6,7 +6,7 @@
 
 int cli_main(int argc, char *argv[]) {
     // If not specified, by default the program will compress the file
-    command_code command = UNKNOWN;
+    command_code command;
     // Flag vector to store all flags used in the command
     unsigned int flags_num = 0;
     flag* flags = calloc(0, sizeof(flag));
@@ -24,6 +24,19 @@ int cli_main(int argc, char *argv[]) {
     if (error_while_reading) {
         printf("Failed to read config file\n");
         exit(1);
+    }
+
+    // Update default default command code
+    switch (get_program_mode(config->program_mode)) {
+        case 1:
+            command = COMPRESS;
+            break;
+        case 0:
+            command = DECOMPRESS;
+            break;
+        default:
+            command = UNKNOWN;
+            break;
     }
 
     /* IMPORTANT FLAGS THAT SKIP REGULAR EXECUTION */
@@ -60,6 +73,7 @@ int cli_main(int argc, char *argv[]) {
     }
     /* REGULAR COMMANDS AND FLAGS */
     char* target_file = argv[1];
+    // TODO: Check if the target file starts with a dash
     for (int i = 2; i < argc; i++) {
         char *current_arg = argv[i];
         if (command_check(current_arg, "--compress", 1, (char*[]){"-c"})) {
@@ -85,7 +99,7 @@ int cli_main(int argc, char *argv[]) {
             flags = tmp;
             flags[flags_num].code = OUTPUT;
             if (i + 1 > argc || verify_argument(argv[i + 1], "-")) {
-                // Place for argument is not found or it is a flag, so we use default config
+                // Place for argument is not found, or it is a flag, so we use default config
                 flags[flags_num].parameter = config->output_path;
             } else {
                 // If argument is found, we use that
@@ -103,7 +117,7 @@ int cli_main(int argc, char *argv[]) {
             flags = tmp;
             flags[flags_num].code = LOG;
             if (i + 1 > argc || verify_argument(argv[i + 1], "-")) {
-                // Place for argument is not found or it is a flag, so we use default config
+                // Place for argument is not found, or it is a flag, so we use default config
                 flags[flags_num].parameter = config->log_path;
             } else {
                 // If argument is found, we use that

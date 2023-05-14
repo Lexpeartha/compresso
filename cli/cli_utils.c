@@ -134,6 +134,16 @@ int decompress(char* target_file, flag* flags, unsigned int flags_num) {
     return 0;
 }
 
+int get_program_mode(const char* program_mode) {
+    if (strcmp(program_mode, "compress") == 0) {
+        return 1;
+    } else if (strcmp(program_mode, "decompress") == 0) {
+        return 0;
+    } else {
+        return -1;
+    }
+}
+
 int verify_argument(const char* arg, const char* starts_with) {
     if (strncmp(arg, starts_with, strlen(starts_with)) == 0) {
         return 1;
