@@ -7,6 +7,7 @@
 int cli_main(int argc, char *argv[]) {
     // If not specified, by default the program will compress the file
     command_code command;
+    int explicitly_specified_command = 0;
     // Flag vector to store all flags used in the command
     unsigned int flags_num = 0;
     flag* flags = calloc(0, sizeof(flag));
@@ -77,17 +78,19 @@ int cli_main(int argc, char *argv[]) {
     for (int i = 2; i < argc; i++) {
         char *current_arg = argv[i];
         if (command_check(current_arg, "--compress", 1, (char*[]){"-c"})) {
-            if (command == DECOMPRESS) {
+            if (command == DECOMPRESS && explicitly_specified_command) {
                 printf("Cannot use both --compress and --decompress flags\n");
                 exit(1);
             }
+            explicitly_specified_command = 1;
             command = COMPRESS;
         }
         else if (command_check(current_arg, "--decompress", 1, (char*[]){"-d"})) {
-            if (command == COMPRESS) {
+            if (command == COMPRESS && explicitly_specified_command) {
                 printf("Cannot use both --compress and --decompress flags\n");
                 exit(1);
             }
+            explicitly_specified_command = 1;
             command = DECOMPRESS;
         }
         else if (command_check(current_arg, "--output", 1, (char*[]){"-o"})) {
