@@ -1,7 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "cli_utils.h"
 
 int cli_main(int argc, char *argv[]) {

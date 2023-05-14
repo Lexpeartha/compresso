@@ -1,3 +1,6 @@
+#include <stdio.h>
+#include <gtk/gtk.h>
+
 #ifndef COMPRESSO_UI_UTILS_H
 #define COMPRESSO_UI_UTILS_H
 
@@ -5,6 +8,9 @@
 int ui_main();
 
 // UTILS
-// empty for now
+int setup_ui(GtkWidget *window);
+int setup_header(GtkWidget *window, GtkWidget *container);
+int setup_body(GtkWidget *container);
+int setup_footer(GtkWidget *container);
 
-#endif //COMPRESSO_UI_UTILS_H
+#endif
