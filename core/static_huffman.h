@@ -1,7 +1,6 @@
-//
-// Created by harry on 4/24/23.
-//
-
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 #ifndef SPECIJALNAGRUPA_MAIN_H
 #define SPECIJALNAGRUPA_MAIN_H
 
@@ -14,11 +13,6 @@ typedef struct {
     struct HeapNode * left_child;
     struct HeapNode * right_child;
 } HeapNode;
-
-typedef struct {
-    int data;
-    int huffman_code;
-} Dictionary;
 
 typedef struct {
     HeapNode * nodes;

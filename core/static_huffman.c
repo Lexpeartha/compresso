@@ -1,7 +1,4 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include "huffman.h"
+#include "static_huffman.h"
 
 int heap_parent(int index){
     return (index - 1) / 2;
@@ -72,7 +69,6 @@ Heap * form_min_heap(array * frequencies, array * data) {
     return heap;
 }
 
-
 int node_is_leaf(HeapNode * node){
     if (!node->left_child && !node->right_child) return 1;
     else return 0;
@@ -130,7 +126,7 @@ HeapNode * extract_min(Heap * heap){
     return returning;
 }
 
-HeapNode * static_huffman(Heap * heap){
+HeapNode * execute_static_huffman(Heap * heap){
     while(heap->len > 1){
         HeapNode * left = extract_min(heap);
         HeapNode * right = extract_min(heap);
@@ -180,7 +176,7 @@ void print_heap(Heap * heap){
     }
 }
 
-int start() {
+int static_huffman_start() {
 
     /* ZA TESTIRANJE. OBRISATI KASNIJE */
     array * test;
@@ -205,12 +201,36 @@ int start() {
     characters->len = 6;
     /* ZA TESTIRANJE. OBRISATI KASNIJE */
 
+
+    // čitanje iz fajla
+//    char * file_name = malloc(100 * sizeof(char));
+//    printf("Input file name: ");
+//    scanf("%s", file_name);
+//    if(file_name[strlen(file_name) - 1] == '\n'){
+//        file_name[strlen(file_name) - 1] = 0;
+//    }
+//
+//    long int file_line;
+//    FILE * in;
+//    FILE * out;
+//
+//    out = fopen("n.bin", "wb");
+//    if(out == NULL){
+//        return 1;
+//    }
+//
+//    char primer[5] = {'a', 'b', 'c', 'd', '\0'};
+//
+//    fwrite(&primer, sizeof(char), 1, out);
+
+//    fread(&tmp, sizeof(long int), 1, fp);
+
     Heap * min_heap = form_min_heap(test, characters);
 
-    // Provera da je heap dobro napravljen
-    // print_heap(min_heap);
+    //Provera da je min heap dobro napravljen
+    //print_heap(min_heap);
 
-    HeapNode * static_huffman_root = static_huffman(min_heap);
+    HeapNode * static_huffman_root = execute_static_huffman(min_heap);
 
     int throwaway[5000];
     int counter = 0;
