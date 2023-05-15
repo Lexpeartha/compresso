@@ -1,5 +1,18 @@
 #include "static_huffman.h"
 
+/*
+ * TO-DO:
+ *
+ * - obrati pažnju na dinamičku alokaciju (naročito kod formiranja min heap-a)
+ * - pazi na memory leak-ove! Oslobodi memoriju koju zauzimaju promenljive
+ * - uradi čitanje iz binarnog fajla i ispis u binarni fajl
+ * - napravi rečnik za parove karakter - huffman kod
+ * - error handling?
+ *
+ */
+
+
+
 int heap_parent(int index){
     return (index - 1) / 2;
 }

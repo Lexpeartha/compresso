@@ -6,13 +6,15 @@
 #define COMPRESSO_ADAPTIVE_HUFFMAN_H
 
 typedef struct {
-    struct Node * left_child;
-    struct Node * right_child;
-    struct Node * parent;
     int weight;
     int identifier;
     char symbol;
 } Node;
+
+typedef struct {
+    Node * nodes;
+    int len;
+} Tree;
 
 typedef struct {
     int * arr;
