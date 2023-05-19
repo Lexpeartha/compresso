@@ -1,9 +1,50 @@
+
 #include"lzw.h"
+hash_entry *hash_table = NULL;
+void add_entry(char *key, long int value) {
+    hash_entry *entry = malloc(sizeof(hash_entry));
+    entry->key = key;
+    entry->value = value;
+    HASH_ADD_STR(hash_table, key, entry);
+}
+long int find_entry(char *key) {
+    hash_entry *entry;
 
+    // Use UT hash to find the entry with the given key in the global hash table
+    HASH_FIND_STR(hash_table, key, entry);
 
+    // If the entry is found, return its value; otherwise, return -1
+    if (entry) {
+        return entry->value;
+    } else {
+        return -1;
+    }
+}
+void free_hash_table() {
+    hash_entry *current_entry, *tmp;
+
+    // Iterate over each entry in the hash table
+    HASH_ITER(hh, hash_table, current_entry, tmp) {
+        // Remove the current entry from the hash table
+        HASH_DEL(hash_table, current_entry);
+
+        // Free the key and value associated with the entry
+        free(current_entry->key);
+        free(current_entry);
+
+        // Note: If your value contains dynamically allocated memory,
+        // make sure to free it before freeing the hash_entry struct.
+    }
+}
+char* make_key(long int value1, long int value2) {
+    char* separator = "_";
+    char* key = malloc(sizeof(char) * (strlen(separator) + 2*sizeof(long int)));
+    sprintf(key, "%ld%s%ld", value1, separator, value2);
+    return key;
+}
 void generate_random_filename(char* filename_buffer) {
     const char* prefix = "tmpfile";
-    int fd;
+    long int fd;
 
 
     size_t filename_len = strlen(prefix) + 10;
@@ -33,20 +74,15 @@ void free_array(array *a) {
     a->arr = NULL;
     free(a);
 }
-long int is_in_dict(dictionary *dict, long int prefix, long int new_char){
-    for(long int i = 0;i < dict->len;i++){
-        if(dict->table[i].prefix == prefix)
-            if(dict->table[i].new_char == new_char)
-                return dict->table[i].code;
+void add_to_dict(dictionary *dict, long int prefix, long int new_char) {
+    if (dict->len >= dict->allocated) {
+        dict->allocated += 1000000;
+        dict->table = (dict_element*) realloc(dict->table, dict->allocated * sizeof(dict_element));
     }
-    return -1;
-}
-void add_to_dict(dictionary *dict,  long int prefix, long int new_char){
+    dict->table[dict->len].new_char = new_char;
+    dict->table[dict->len].prefix = prefix;
+    add_entry(make_key(prefix, new_char), dict->len);
     dict->len++;
-    dict->table = (dict_element*) realloc(dict->table, dict->len * sizeof(dict_element));
-    dict->table[dict->len-1].code = dict->len-1;
-    dict->table[dict->len-1].new_char = new_char;
-    dict->table[dict->len-1].prefix = prefix;
 }
 long int return_prefix(dictionary *dict, long int code){
     return dict->table[code].prefix;
@@ -100,11 +136,13 @@ char* compress_lzw(char* input_file_name){
     dict = (dictionary*)malloc(sizeof(dictionary));
     dict->table = (dict_element*)malloc(256*sizeof(dict_element));
     dict->len = 256;
+    dict->allocated = 256;
     for(long int i = 0;i < dict->len;i++){
-        dict->table[i].code = i;
         dict->table[i].prefix = -1;
         dict->table[i].new_char = i;
+        add_entry(make_key(-1, i) , i);
     }
+
     char *file_name;
     file_name = (char*)malloc(20*sizeof(char));
     generate_random_filename(file_name);
@@ -127,12 +165,13 @@ char* compress_lzw(char* input_file_name){
     fseek(fp_write, 0, SEEK_SET);
 
 
-    long int string = (long) fgetc(fp);
+    long int string = (long int) fgetc(fp);
     long int x = 1;
     long int character = 0;
+    long int tmp;
     while(x < size) {
-        character = (long) fgetc(fp);
-        long int tmp = is_in_dict(dict, string, character);
+        character = (long int) fgetc(fp);
+        tmp = find_entry(make_key(string, character));
         if (tmp != -1)
             string = tmp;
         else {
@@ -142,11 +181,13 @@ char* compress_lzw(char* input_file_name){
         }
         x++;
     }
-
+    double dict_size = dict->len;
+    dict_size = dict_size*8/1048576;
+    printf("Size of dictionary: %lfMB", dict_size);
     fwrite(&string, sizeof(long int), 1, fp_write);
     free_dictionary(dict);
     fclose(fp_write);
-
+    free_hash_table();
     return file_name;
 
 }
@@ -169,10 +210,11 @@ void decompress(char* input_file_name, char *output_file_name){
     dict = (dictionary*)malloc(sizeof(dictionary));
     dict->table = (dict_element*)malloc(256*sizeof(dict_element));
     dict->len = 256;
+    dict->allocated = 256;
+
 
 
     for(long int i = 0;i < dict->len;i++){
-        dict->table[i].code = i;
         dict->table[i].prefix = -1;
         dict->table[i].new_char = i;
     }
@@ -185,22 +227,21 @@ void decompress(char* input_file_name, char *output_file_name){
     uint8_t convertor;
     fread(&old_code, sizeof(long int), 1, fp_write);
     convertor = old_code;
-    fwrite(&convertor, sizeof(uint8_t), 1, output_file);
+    fwrite(&convertor, sizeof(uint8_t) , 1, output_file);
     for(long int i = 1; i < len;i++){
         fread(&new_code, sizeof(long int), 1, fp_write);
-        printf("%ld ", new_code);
         if(new_code >= dict->len){
             tmp_arr = print_string(dict, old_code);
             for(long int i = 0;i < tmp_arr->len;i++){
                 convertor = tmp_arr->arr[i];
-                fwrite(&convertor, sizeof(uint8_t), 1, output_file);
+                fwrite(&convertor, sizeof(uint8_t) , 1, output_file);
             }
 
 
             tmp_arr = print_string(dict, character);
             for(long int i = 0;i < tmp_arr->len;i++){
                 convertor = tmp_arr->arr[i];
-                fwrite(&convertor, sizeof(uint8_t), 1, output_file);
+                fwrite(&convertor, sizeof(uint8_t) , 1, output_file);
             }
 
         }
@@ -216,8 +257,9 @@ void decompress(char* input_file_name, char *output_file_name){
         old_code = new_code;
     }
 
-
     free_array(tmp_arr);
     free_dictionary(dict);
+    free_hash_table();
     remove(input_file_name);
 }
+
