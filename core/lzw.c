@@ -183,7 +183,6 @@ char* compress_lzw(char* input_file_name){
     }
     double dict_size = dict->len;
     dict_size = dict_size*8/1048576;
-    printf("Size of dictionary: %lfMB", dict_size);
     fwrite(&string, sizeof(long int), 1, fp_write);
     free_dictionary(dict);
     fclose(fp_write);
