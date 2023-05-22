@@ -5,16 +5,20 @@
 #ifndef COMPRESSO_ADAPTIVE_HUFFMAN_H
 #define COMPRESSO_ADAPTIVE_HUFFMAN_H
 
-typedef struct {
+typedef struct Node {
+    struct Node * left_child;
+    struct Node * right_child;
+    struct Node * parent;
+
     int weight;
     int identifier;
-    char symbol;
+    long int symbol;
 } Node;
 
 typedef struct {
-    Node * nodes;
-    int len;
-} Tree;
+    struct Node ** nodes;
+    int length;
+} Queue_Stack;
 
 typedef struct {
     int * arr;

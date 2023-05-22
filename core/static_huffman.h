@@ -4,12 +4,10 @@
 #ifndef SPECIJALNAGRUPA_MAIN_H
 #define SPECIJALNAGRUPA_MAIN_H
 
-#define MAX_LENGTH 500
-#define MAX_CHILDREN 100
 
 typedef struct {
-    int frequency;
-    int data;
+    long int frequency;
+    long int data;
     struct HeapNode * left_child;
     struct HeapNode * right_child;
 } HeapNode;
@@ -20,10 +18,15 @@ typedef struct {
 } Heap;
 
 typedef struct {
-    int * arr;
-    int len;
+    long int * arr;
+    long int len;
 } array;
 
-
+typedef struct {
+    long int * keys;
+    long int * frequencies;
+    long int * huffman_codes;
+    int len;
+} Dictionary;
 
 #endif //SPECIJALNAGRUPA_MAIN_H
