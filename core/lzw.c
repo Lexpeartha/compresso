@@ -255,7 +255,7 @@ void decompress(char* input_file_name, char *output_file_name){
         add_to_dict(dict, old_code, character);
         old_code = new_code;
     }
-
+    fclose(fp_write);
     free_array(tmp_arr);
     free_dictionary(dict);
     free_hash_table();
