@@ -1,3 +1,7 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #ifndef COMPRESSO_CLI_UTILS_H
 #define COMPRESSO_CLI_UTILS_H
 
