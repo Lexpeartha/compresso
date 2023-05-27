@@ -10,9 +10,9 @@ typedef struct Node {
     struct Node * right_child;
     struct Node * parent;
 
-    int weight;
-    int identifier;
-    long int symbol;
+    long int weight;
+    long int identifier;
+    char symbol;
 } Node;
 
 typedef struct {
@@ -24,5 +24,10 @@ typedef struct {
     int * arr;
     int len;
 } array;
+
+typedef struct {
+    unsigned char byte;
+    short int index;
+} Byte_buffer;
 
 #endif //COMPRESSO_ADAPTIVE_HUFFMAN_H

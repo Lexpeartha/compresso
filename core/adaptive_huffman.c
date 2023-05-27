@@ -1,11 +1,63 @@
 #include "adaptive_huffman.h"
-#define OUTPUT "output.bin"
-#define DECOMPRESSED "decompressed.bin"
+#define OUTPUT "adaptive_output"
+#define DECOMPRESSED "decompressed.txt"
 #define BUFFER_SIZE 100
-#define NYT 3 // a randomly picked number that won't occur in files
-#define INTERNAL_NODE 4 // also a random number, used to identify what is an internal node
+#define NYT (-10) // a randomly picked number that won't occur in files
+#define INTERNAL_NODE (-11) // also a random number, used to identify what is an internal node
 
 int number_of_nodes = 0;
+
+void print_byte_buffer(Byte_buffer * byte_buffer){
+    // print the contents of the byte_buffer
+    FILE * out;
+    out = fopen(OUTPUT, "a");
+    if(out == NULL){
+        printf("Can't open file.");
+        exit(1);
+    }
+
+    int len = 7 - byte_buffer->index;
+    if (len > 0) {
+        fputc(byte_buffer->byte, out);
+    }
+    fclose(out);
+    byte_buffer->byte = 0;
+    byte_buffer->index = 7;
+}
+
+void fill_byte_buffer(Byte_buffer * byte_buffer, char * string, int is_ascii, char ascii_symbol){
+    // if the buffer needs to be filled with an ascii character
+    if(is_ascii){
+        for(int i = 0; i < 8; i++){
+            // iterating from LSB to MSB
+            if(ascii_symbol & 1){
+                // it's a 1
+                byte_buffer->byte |= (1 << byte_buffer->index);
+            }
+            else {
+                // it's a 0
+                byte_buffer->byte &= ~(1 << byte_buffer->index);
+            }
+            byte_buffer->index--;
+            if(byte_buffer->index == -1) print_byte_buffer(byte_buffer);
+
+            ascii_symbol >>= 1;
+        }
+    }
+    // if the buffer needs to be filled with 1s and 0s
+    else {
+        for(int i = 0; i < strlen(string); i++){
+            if(string[i] == '0'){
+                byte_buffer->byte &= ~(1 << byte_buffer->index);
+            }
+            else if(string[i] == '1'){
+                byte_buffer->byte |= (1 << byte_buffer->index);
+            }
+            byte_buffer->index--;
+            if(byte_buffer->index == -1) print_byte_buffer(byte_buffer);
+        }
+    }
+}
 
 Node * create_empty_tree(){
     // initialization of an empty tree
@@ -69,8 +121,8 @@ void update_identifiers(Node * root){
     // no need to have them separately
     Queue_Stack * queue = malloc(sizeof(Queue_Stack));
     Queue_Stack * stack = malloc(sizeof(Queue_Stack));
-    queue->nodes = malloc(number_of_nodes * sizeof(Node *));
-    stack->nodes = malloc(number_of_nodes * sizeof(Node *));
+    queue->nodes = malloc(number_of_nodes * sizeof(Node));
+    stack->nodes = malloc(number_of_nodes * sizeof(Node));
     queue->length = 0;
     stack->length = 0;
 
@@ -89,11 +141,16 @@ void update_identifiers(Node * root){
         Node * temp = pop(stack);
         temp->identifier = identifier++;
     }
+    free(queue->nodes);
+    free(stack->nodes);
+    free(queue);
+    free(stack);
+
 }
 
 
 // returns the node that has the target symbol
-Node * get_node(Node * node, long int symbol){
+Node * get_node(Node * node, char symbol){
     if(node != NULL){
         if(node->symbol == symbol){
             return node;
@@ -112,9 +169,9 @@ Node * get_node(Node * node, long int symbol){
 
 
 // writes out the code of a leaf
-char * path_to_node(Node * root, long int symbol){
+char * path_to_node(Node * root, char symbol){
     Node * found_node = get_node(root, symbol);
-    Node * next_node = malloc(sizeof(Node));
+    Node * next_node;
     char * buffer = malloc(BUFFER_SIZE * sizeof(char));
     int buffer_length = 0;
 
@@ -136,6 +193,9 @@ char * path_to_node(Node * root, long int symbol){
     for(int i = buffer_length - 1; i >= 0; i--){
         reverse[count++] = buffer[i];
     }
+    reverse[count] = 0;
+
+    free(buffer);
 
     return reverse;
 }
@@ -144,64 +204,44 @@ char * path_to_node(Node * root, long int symbol){
 void delete_file(char * filename){
     if (remove(filename) != 0){
         // if nothing is deleted
-        printf("No file was deleted.");
+        printf("\nNo file was deleted.");
     }
 }
 
-void transmit_code(Node * root, long int symbol, int exists){
+void transmit_code(Node * root, char symbol, int exists, Byte_buffer * byte_buffer){
     if(root->left_child == NULL && root->right_child == NULL){
         // the output file needs to be deleted first, because codes are appended
         delete_file(OUTPUT);
     }
 
-    FILE * out;
-    out = fopen(OUTPUT, "ab");
-    if(out == NULL){
-        printf("Can't open file.");
-        exit(1);
-    }
-    size_t elements_written = 0;
-
-    char * buffer = malloc(BUFFER_SIZE * sizeof(char));
-    long ascii_code;
+    char * buffer = NULL;
 
     // if the tree is empty
     if(root->left_child == NULL && root->right_child == NULL){
-        ascii_code = symbol;
-        elements_written = fwrite(&ascii_code, sizeof(long int), 1, out);
+        fill_byte_buffer(byte_buffer, "", 1, symbol);
     }
     // if it's the first occurrence
     else if (exists == 0){
 
         // find NYT node
-        strcpy(buffer, path_to_node(root, NYT));
-        for(int j = 0; j < strlen(buffer); j++){
-            ascii_code = buffer[j];
-            elements_written = fwrite(&ascii_code, sizeof(long int), 1, out);
-        }
+        buffer = path_to_node(root, NYT);
+        fill_byte_buffer(byte_buffer, buffer, 0, 'a');
 
         // print out the new code for the symbol
-        ascii_code = symbol;
-        elements_written += fwrite(&ascii_code, sizeof(long int), 1, out);
+        fill_byte_buffer(byte_buffer, "", 1, symbol);
     }
     // if a char already present in the tree is transmitted
     else {
-        strcpy(buffer, path_to_node(root, symbol));
-        for(int j = 0; j < strlen(buffer); j++){
-            ascii_code = buffer[j];
-            elements_written = fwrite(&ascii_code, sizeof(long int), 1, out);
-        }
+        buffer = path_to_node(root, symbol);
+        fill_byte_buffer(byte_buffer, buffer, 0, 'a');
+
     }
-    fclose(out);
-    if(elements_written == 0){
-        printf("No elements written!");
-        exit(2);
-    }
+    free(buffer);
 }
 
 // a function that 'extends' the NYT node; NYT becomes an internal node R, the left child becomes
 // the new NYT, and the right one is for the symbol S
-void spawn_node(Node * root, long int symbol){
+void spawn_node(Node * root, char symbol){
     Node * nyt_node = get_node(root, NYT);
 
     nyt_node->left_child = malloc(sizeof(Node));
@@ -238,13 +278,14 @@ Node * find_greater_identifier(Node * root, Node * target_node){
     queue->nodes = malloc(number_of_nodes * sizeof(Node *));
     queue->length = 0;
 
-    Node ** eligible_nodes = malloc(number_of_nodes * sizeof(Node **));
+    Node ** eligible_nodes = malloc(number_of_nodes * sizeof(Node *));
     int eligible_nodes_length = 0;
 
     // level order traversal; searching for a node that has the same weight but greater id
     Node * temp = root;
     while(temp != NULL){
         if(temp->weight == target_node->weight && temp->identifier > target_node->identifier){
+            eligible_nodes[eligible_nodes_length] = malloc(sizeof(Node));
             eligible_nodes[eligible_nodes_length++] = temp;
         }
         if(temp->left_child != NULL) enqueue(queue, temp->left_child);
@@ -252,6 +293,8 @@ Node * find_greater_identifier(Node * root, Node * target_node){
         temp = dequeue(queue);
     }
 
+    free(queue->nodes);
+    free(queue);
 
     int max = 0;
     for(int i = 0; i < eligible_nodes_length; i++){
@@ -260,7 +303,10 @@ Node * find_greater_identifier(Node * root, Node * target_node){
     if(eligible_nodes_length > 0) {
         return eligible_nodes[max];
     }
-    else return NULL;
+    else {
+        free(eligible_nodes);
+        return NULL;
+    }
 }
 
 // swaps two nodes in the tree
@@ -272,7 +318,7 @@ Node * swap_nodes(Node * node1, Node * node2){
     }
 
     // swapping symbols
-    long int temp_symbol = node1->symbol;
+    char temp_symbol = node1->symbol;
     node1->symbol = node2->symbol;
     node2->symbol = temp_symbol;
 
@@ -308,10 +354,11 @@ void update_weights(Node * root, Node * mobile_node){
         }
         mobile_node->weight++;
         mobile_node = mobile_node->parent;
+
     }
 }
 
-void update_tree(Node * root, long int symbol){
+void update_tree(Node * root, char symbol){
     update_identifiers(root);
     if(symbol == NYT){
         // arguments: root, parent of a parent of an NYT node
@@ -325,107 +372,180 @@ void update_tree(Node * root, long int symbol){
 }
 
 // processing of one char by the huffman algorithm
-void execute_adaptive_huffman(Node * root, char symbol){
+void execute_adaptive_huffman(Node * root, char symbol, Byte_buffer * byte_buffer){
     // symbol already exists
     Node * found_node = get_node(root, symbol);
     char node_symbol = NYT;
-    
+
     if (found_node != NULL){
-        transmit_code(root, symbol, 1);
+        transmit_code(root, symbol, 1, byte_buffer);
         node_symbol = symbol;
     }
     // symbol does NOT exist
     else {
-        transmit_code(root, symbol, 0);
+        transmit_code(root, symbol, 0, byte_buffer);
         spawn_node(root, symbol);
     }
     update_tree(root, node_symbol);
 
 }
 
-long int navigate(Node * root, const char * buffer, int buffer_len){
+char navigate(Node * root, const char * buffer, int buffer_len){
     Node * temp = root;
-    for(int i = 0; i < buffer_len; i++){
+    for(int i = 0; i < strlen(buffer); i++){
         if(buffer[i] == '0') temp = temp->left_child;
         else if(buffer[i] == '1') temp = temp->right_child;
     }
     return temp->symbol;
 }
 
+char charify_ascii(char input){
+    char reversed = 0;
+    int number_of_bits = 8; // Number of bits in a char
+
+    for (int i = 0; i < number_of_bits; i++) {
+        reversed <<= 1;
+        if (input & 1)
+            reversed |= 1;
+        input >>= 1;
+    }
+
+    return reversed;
+}
+
+long determine_file_size(const char * filename) {
+    FILE * in = fopen(filename, "rb");
+    if (in == NULL) {
+        printf("\nCan't open file.");
+        exit(1);
+    }
+
+    fseek(in, 0L, SEEK_END);
+    long size = ftell(in);
+    fclose(in);
+
+    return size;
+}
+
 int adaptive_huffman_decode(char * filename){
 
-    delete_file(DECOMPRESSED);
+    printf("\nDecoding has started.");
+    delete_file(filename);
 
     FILE * in;
     FILE * out;
     in = fopen(OUTPUT, "rb");
-    out = fopen(filename, "ab");
+    out = fopen(filename, "a");
     if(in == NULL){
-        printf("Can't open file.");
+        printf("Can't open file.\n");
         exit(1);
     }
     if(out == NULL){
-        printf("Can't open file.");
+        printf("Can't open file.\n");
         exit(1);
     }
 
-    long int data;
+    char data;
 
     number_of_nodes = 0;
     Node * root = create_empty_tree();
-    char * buffer = malloc(BUFFER_SIZE * sizeof(char));
-    int buffer_len = 0;
 
 
-    // reading from a binary file
-    while(fread(&data, sizeof(long int), 1, in) == 1){
-        if(number_of_nodes == 1){
-            spawn_node(root, data);
-            fwrite(&data, sizeof(long int), 1, out);
-        }
-        else if ((char) data == '0' || (char) data == '1') {
-            buffer[buffer_len++] = (char) data;
-            long int navigate_result = navigate(root, buffer, buffer_len);
-            if(navigate_result == NYT){
-                // next data line should be printed; spawn and write the next char, update tree
-                fread(&data, sizeof(long int), 1, in);
-                spawn_node(root, data);
-                fwrite(&data, sizeof(long int), 1, out);
-                buffer_len = 0;
-                update_tree(root, NYT);
-            }
-            else if (navigate_result != INTERNAL_NODE){
-                // write char and update tree
-                fwrite(&navigate_result, sizeof(long int), 1, out);
-                update_tree(root, navigate_result);
-                buffer_len = 0;
-            }
-        }
+    fread(&data, sizeof(long int), 1, in);
+    spawn_node(root, charify_ascii(data));
+    char x = charify_ascii(data);
+    fputc(x, out);
 
-    }
-
-    fclose(in);
     fclose(out);
+    //fclose(in);
+
 
     return 0;
 }
 
+void free_tree(Node * root){
+    // do nothing
+}
+
 // adaptive_huffman_encode
 int adaptive_huffman_encode(){
+    char * filename = "input.txt";
+    char * filename_copy = malloc(200 * sizeof(char));
+    filename_copy = strcpy(filename_copy, filename);
+
+    // determining the extension of the file
+    char * extension = malloc(10 * sizeof(char));
+    char * token = strtok(filename_copy, ".");
+    if(token != NULL){
+        token = strtok(NULL, ".");
+    }
+    if(token != NULL){
+        strcpy(extension, token);
+    }
+    else {
+        strcpy(extension, "other");
+    }
 
     Node * root = create_empty_tree();
 
-    char example[1000];
+    FILE * in;
+    in = fopen(filename, "rb");
 
-    // example input
-    strcpy(example, "test123");
-
-    for(int i = 0; i < strlen(example); i++){
-        execute_adaptive_huffman(root, example[i]);
+    if(in == NULL){
+        printf("Can't open file.\n");
+        exit(1);
     }
+
+
+    // reading from a file
+    char data;
+    Byte_buffer * byte_buffer = malloc(sizeof(Byte_buffer));
+    byte_buffer->byte = 0;
+    byte_buffer->index = 7;
+
+    // if it's binary
+    if(strcmp(extension, "txt") != 0){
+        while(fread(&data, sizeof(long int), 1, in) == 1){
+            // a line of data is of size 'long int'; it gets split into chars
+            char fragment1 = (data & 0xff000000L) >> 24;
+            char fragment2 = (data & 0x00ff0000L) >> 16;
+            char fragment3 = (data & 0x0000ff00L) >> 8;
+            char fragment4 = (data & 0x000000ffL);
+
+
+            execute_adaptive_huffman(root, fragment1, byte_buffer);
+            execute_adaptive_huffman(root, fragment2, byte_buffer);
+            execute_adaptive_huffman(root, fragment3, byte_buffer);
+            execute_adaptive_huffman(root, fragment4, byte_buffer);
+        }
+    }
+    // if it's a .txt
+    else {
+        char c;
+        int count = 0;
+        while((c = fgetc(in)) != EOF){
+            count++;
+            execute_adaptive_huffman(root, c, byte_buffer);
+        }
+        printf("\nNumber of read chars: %d", count);
+    }
+
+    fclose(in);
+
+    printf("\nNumber of nodes: %d", number_of_nodes);
+    printf("\n(Consuming %zu bytes before free() )", sizeof(Node) * number_of_nodes);
+
+    print_byte_buffer(byte_buffer);
 
     // DELETE LATER
     adaptive_huffman_decode(DECOMPRESSED);
+
+    free(root);
+    free(filename_copy);
+    free(byte_buffer);
+    free(extension);
+
+
 
     return 0;
 }
