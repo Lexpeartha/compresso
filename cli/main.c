@@ -12,7 +12,7 @@ int cli_main(int argc, char *argv[]) {
     unsigned int flags_num = 0;
     flag* flags = calloc(0, sizeof(flag));
     if (flags == NULL) {
-        printf("Failed to allocate memory for flags\n");
+        printf("MEMORY ALLOCATION FAILED\n");
         exit(1);
     }
     // Whitelist of possible non-commands on which we don't want program to break
@@ -23,8 +23,8 @@ int cli_main(int argc, char *argv[]) {
     int error_while_reading = read_config_file(config_path, config);
 
     if (error_while_reading) {
-        printf("Failed to read config file\n");
-        exit(1);
+        printf("FAILED TO READ CONFIG FILE\n");
+        exit(4);
     }
 
     /* IMPORTANT FLAGS THAT SKIP REGULAR EXECUTION */
@@ -65,22 +65,22 @@ int cli_main(int argc, char *argv[]) {
         char *current_arg = argv[i];
         if (command_check(current_arg, "--compress", 1, (char*[]){"-c"})) {
             if (command == DECOMPRESS) {
-                printf("Cannot use both --compress and --decompress flags\n");
-                exit(1);
+                printf("FALSE USAGE: Cannot use both --compress and --decompress flags\n");
+                exit(5);
             }
             command = COMPRESS;
         }
         else if (command_check(current_arg, "--decompress", 1, (char*[]){"-d"})) {
             if (command == COMPRESS) {
-                printf("Cannot use both --compress and --decompress flags\n");
-                exit(1);
+                printf("FALSE USAGE: Cannot use both --compress and --decompress flags\n");
+                exit(5);
             }
             command = DECOMPRESS;
         }
         else if (command_check(current_arg, "--output", 1, (char*[]){"-o"})) {
             flag* tmp = realloc(flags, (flags_num + 1) * sizeof(flag));
             if (tmp == NULL) {
-                printf("Failed to allocate memory for flags\n");
+                printf("FAILED MEMORY ALLOCATION\n");
                 exit(1);
             }
             flags = tmp;
@@ -98,7 +98,7 @@ int cli_main(int argc, char *argv[]) {
         else if (command_check(current_arg, "--log", 1, (char*[]){"-l"})) {
             flag* tmp = realloc(flags, (flags_num + 1) * sizeof(flag));
             if (tmp == NULL) {
-                printf("Failed to allocate memory for flags\n");
+                printf("FAILED MEMORY ALLOCATION\n");
                 exit(1);
             }
             flags = tmp;
@@ -124,8 +124,8 @@ int cli_main(int argc, char *argv[]) {
                 }
             }
             if (!is_exception) {
-                printf("Invalid command, flag or symbol: %s\n", current_arg);
-                exit(1);
+                printf("FALSE USAGE: Invalid command detected:%s\n", current_arg);
+                exit(5);
             }
         }
     }

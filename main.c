@@ -2,11 +2,11 @@
 #include "ui/ui_utils.h"
 
 int main(int argc, char *argv[]) {
-    #ifdef USE_CLI
-    cli_main(argc, argv);
-    #else
-    ui_main();
-    #endif
+    if (argc > 1) {
+        cli_main(argc, argv);
+    } else {
+        ui_main();
+    }
 
     return 0;
 }
