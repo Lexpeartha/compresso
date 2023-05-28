@@ -80,7 +80,7 @@ int cli_main(int argc, char *argv[]) {
         else if (command_check(current_arg, "--output", 1, (char*[]){"-o"})) {
             flag* tmp = realloc(flags, (flags_num + 1) * sizeof(flag));
             if (tmp == NULL) {
-                printf("FAILED MEMORY ALLOCATION\n");
+                printf("MEMORY ALLOCATION FAILED\n");
                 exit(1);
             }
             flags = tmp;
@@ -98,7 +98,7 @@ int cli_main(int argc, char *argv[]) {
         else if (command_check(current_arg, "--log", 1, (char*[]){"-l"})) {
             flag* tmp = realloc(flags, (flags_num + 1) * sizeof(flag));
             if (tmp == NULL) {
-                printf("FAILED MEMORY ALLOCATION\n");
+                printf("MEMORY ALLOCATION FAILED\n");
                 exit(1);
             }
             flags = tmp;
