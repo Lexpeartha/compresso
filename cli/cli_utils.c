@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "cli_utils.h"
+#include "../core/lzw.h"
 #include "../core/file_utils.h"
 
 int command_check(char* input, char* cmd_name, int cmd_aliases_len, char* cmd_aliases[cmd_aliases_len]) {
@@ -120,17 +121,17 @@ int update_config_file(const char* filename, file_configuration* config) {
 
 int compress(char* target_file, flag* flags, unsigned int flags_num) {
     printf("Compressing file %s\n", target_file);
-    for (int i = 0; i < flags_num; i++) {
-        printf("Flag %d: %d, %s\n", i, flags[i].code, flags[i].parameter);
-    }
+
+    compress_lzw(target_file);
+
     return 0;
 }
 
 int decompress(char* target_file, flag* flags, unsigned int flags_num) {
     printf("Decompressing file %s\n", target_file);
-    for (int i = 0; i < flags_num; i++) {
-        printf("Flag %d: %d, %s\n", i, flags[i].code, flags[i].parameter);
-    }
+
+    decompress_lzw(target_file, "decompressed.txt");
+
     return 0;
 }
 

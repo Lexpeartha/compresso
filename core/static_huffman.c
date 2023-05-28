@@ -1,7 +1,7 @@
 #include "static_huffman.h"
 #define OUTPUT "static_output"
 
-hash_entry * hash_table = NULL;
+hash_entry * hash_table_huffman = NULL;
 output_hash * output_hash_table = NULL;
 
 int heap_left_child(int index){
@@ -50,11 +50,11 @@ void insert_value(Heap * heap, HeapNode * new){
 Heap * form_min_heap() {
     // initializing the heap
     Heap * heap = malloc(sizeof(Heap));
-    heap->nodes = malloc(HASH_COUNT(hash_table) * sizeof(HeapNode *));
+    heap->nodes = malloc(HASH_COUNT(hash_table_huffman) * sizeof(HeapNode *));
     heap->len = 0;
 
     hash_entry * s;
-    for (s = hash_table; s != NULL; s = s->hh.next) {
+    for (s = hash_table_huffman; s != NULL; s = s->hh.next) {
         HeapNode * new = malloc(sizeof(HeapNode));
         new->frequency = s->frequency;
         new->data = s->symbol;
@@ -311,8 +311,8 @@ int static_huffman_encode() {
     if(strcmp(extension, "txt") != 0){
         while(fread(&data, sizeof(char), 1, in) == 1){
 
-            hash_entry * s = find_char(data, &hash_table);
-            if(s == NULL) add_char(data, &hash_table);
+            hash_entry * s = find_char(data, &hash_table_huffman);
+            if(s == NULL) add_char(data, &hash_table_huffman);
             else s->frequency++;
 
             count += 1;
@@ -323,8 +323,8 @@ int static_huffman_encode() {
         char c;
         while((c = fgetc(in)) != EOF){
             count++;
-            hash_entry * s = find_char(c, &hash_table);
-            if(s == NULL) add_char(c, &hash_table);
+            hash_entry * s = find_char(c, &hash_table_huffman);
+            if(s == NULL) add_char(c, &hash_table_huffman);
             else s->frequency++;
         }
 
@@ -334,7 +334,7 @@ int static_huffman_encode() {
 
     fclose(in);
 
-    print_hash(&hash_table);
+    print_hash(&hash_table_huffman);
 
 
 
@@ -384,10 +384,10 @@ int static_huffman_encode() {
     print_byte_buffer2(byte_buffer);
     if(byte_buffer->index != 7) printf("\nWarning! Byte buffer not empty!");
 
-    export_hash_table(hash_table, "hes_tabela.txt");
+    export_hash_table(hash_table_huffman, "hes_tabela.txt");
 
     printf("\n\n");
-    print_hash(&hash_table);
+    print_hash(&hash_table_huffman);
 
     hash_entry * novi = import_hash_table("hes_tabela.txt");
 

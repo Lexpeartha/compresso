@@ -190,7 +190,7 @@ char* compress_lzw(char* input_file_name){
     return file_name;
 
 }
-void decompress(char* input_file_name, char *output_file_name){
+void decompress_lzw(char* input_file_name, char *output_file_name){
 
     FILE* fp_write = fopen(input_file_name, "rb");
     int size_write;

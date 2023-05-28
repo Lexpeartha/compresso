@@ -6,6 +6,7 @@
 
 int cli_main(int argc, char *argv[]) {
     // If not specified, by default the program will compress the file
+    // TODO: Update based on configuration
     command_code command = UNKNOWN;
     // Flag vector to store all flags used in the command
     unsigned int flags_num = 0;
