@@ -1,9 +1,10 @@
 #include "adaptive_huffman.h"
 #define OUTPUT "adaptive_output"
-#define DECOMPRESSED "decompressed.txt"
+#define DECOMPRESSED "decompressed"
 #define BUFFER_SIZE 100
 #define NYT (-10) // a randomly picked number that won't occur in files
 #define INTERNAL_NODE (-11) // also a random number, used to identify what is an internal node
+#define MAX 10000
 
 int number_of_nodes = 0;
 
@@ -218,6 +219,7 @@ void transmit_code(Node * root, char symbol, int exists, Byte_buffer * byte_buff
 
     // if the tree is empty
     if(root->left_child == NULL && root->right_child == NULL){
+        //printf("%c", symbol);
         fill_byte_buffer(byte_buffer, "", 1, symbol);
     }
     // if it's the first occurrence
@@ -391,12 +393,12 @@ void execute_adaptive_huffman(Node * root, char symbol, Byte_buffer * byte_buffe
 }
 
 char navigate(Node * root, const char * buffer, int buffer_len){
-    Node * temp = root;
-    for(int i = 0; i < strlen(buffer); i++){
-        if(buffer[i] == '0') temp = temp->left_child;
-        else if(buffer[i] == '1') temp = temp->right_child;
+    Node * temp2 = root;
+    for(int i = 0; i < buffer_len; i++){
+        if(buffer[i] == '0') temp2 = temp2->left_child;
+        else if(buffer[i] == '1') temp2 = temp2->right_child;
     }
-    return temp->symbol;
+    return temp2->symbol;
 }
 
 char charify_ascii(char input){
@@ -413,18 +415,16 @@ char charify_ascii(char input){
     return reversed;
 }
 
-long determine_file_size(const char * filename) {
-    FILE * in = fopen(filename, "rb");
-    if (in == NULL) {
-        printf("\nCan't open file.");
-        exit(1);
+void remove_first_element(char * buffer, int * len){
+    for(int i = 0; i < *len; i++){
+        buffer[i] = buffer[i + 1];
     }
+    (*len)--;
+}
 
-    fseek(in, 0L, SEEK_END);
-    long size = ftell(in);
-    fclose(in);
-
-    return size;
+char charify_string(char * string){
+    char x = strtol(string, NULL, 2);
+    return charify_ascii(x);
 }
 
 int adaptive_huffman_decode(char * filename){
@@ -435,7 +435,7 @@ int adaptive_huffman_decode(char * filename){
     FILE * in;
     FILE * out;
     in = fopen(OUTPUT, "rb");
-    out = fopen(filename, "a");
+    out = fopen(filename, "ab");
     if(in == NULL){
         printf("Can't open file.\n");
         exit(1);
@@ -448,16 +448,99 @@ int adaptive_huffman_decode(char * filename){
     char data;
 
     number_of_nodes = 0;
-    Node * root = create_empty_tree();
+    Node * root2 = create_empty_tree();
 
+    fseek(in, 0, SEEK_END);
+    long int size = ftell(in);
+    long int counter = 0;
+    printf("\n\nSize of compressed file: %ld B", size);
+    fseek(in, 0, SEEK_SET);
 
-    fread(&data, sizeof(long int), 1, in);
-    spawn_node(root, charify_ascii(data));
+    fread(&data, sizeof(char), 1, in);
+    spawn_node(root2, charify_ascii(data));
     char x = charify_ascii(data);
+    counter++;
     fputc(x, out);
 
+    char * buffer = malloc(MAX * sizeof(char));
+    char temp_new[MAX];
+    int temp_new_len = 0;
+    int buffer_len = 0;
+    int go = 1;
+
+    while(counter <= size - 2 && go){
+        fread(&data, sizeof(char), 1, in);
+        counter++;
+
+        // transfer the bits from the newly read byte to a buffer
+        for (int i = 7; i >= 0; i--) {
+            int bit = (data >> i) & 1;
+            if(bit == 0) buffer[buffer_len++] = '0';
+            else buffer[buffer_len++] = '1';
+        }
+
+        // try to navigate
+        while(1){
+            temp_new[temp_new_len++] = buffer[0];
+            remove_first_element(buffer, &buffer_len);
+            char navigate_result = navigate(root2, temp_new, temp_new_len);
+
+            if(navigate_result == NYT){
+                // read another byte, except if it's the penultimate
+                if(counter + 1 == size - 1) {
+                    go = 0;
+                    break;
+                }
+                else {
+                    fread(&data, sizeof(char), 1, in);
+                    counter++;
+                    // fill this into the buffer again
+                    for (int i = 7; i >= 0; i--) {
+                        int bit = (data >> i) & 1;
+                        if(bit == 0) buffer[buffer_len++] = '0';
+                        else buffer[buffer_len++] = '1';
+                    }
+
+                    // charify first eight bits of buffer
+                    temp_new_len = 0;
+                    for(int i = 0; i < 8; i++){
+                        temp_new[temp_new_len++] = buffer[0];
+                        remove_first_element(buffer, &buffer_len);
+                    }
+
+                    char symbol = charify_string(temp_new);
+                    spawn_node(root2, symbol);
+                    fputc(symbol, out);
+                    temp_new_len = 0;
+                    update_tree(root2, NYT);
+                }
+            }
+            else if(navigate_result != INTERNAL_NODE){
+                // write the symbol, update tree
+                fputc(navigate_result, out);
+                update_tree(root2, navigate_result);
+                temp_new_len = 0;
+            }
+
+            if(buffer_len == 0) break;
+        }
+    }
+
+    // process the last two lines of .bin file
+    char penultimate, ultimate;
+    fread(&penultimate, sizeof(char), 1, in);
+    fread(&ultimate, sizeof(char), 1, in);
+
+    int useful_bits = (int) ultimate;
+    for (int i = 7; i >= 8 - useful_bits; i--) {
+        int bit = (data >> i) & 1;
+        if(bit == 0) buffer[buffer_len++] = '0';
+        else buffer[buffer_len++] = '1';
+    }
+
+
     fclose(out);
-    //fclose(in);
+    fclose(in);
 
 
     return 0;
@@ -467,9 +550,14 @@ void free_tree(Node * root){
     // do nothing
 }
 
+char how_many_useful_bits(Byte_buffer * byte_buffer){
+    return (char) (7 - byte_buffer->index);
+}
+
 // adaptive_huffman_encode
 int adaptive_huffman_encode(){
     char * filename = "input.txt";
+    //filename = "tmpfile-jJbl8hnull";
     char * filename_copy = malloc(200 * sizeof(char));
     filename_copy = strcpy(filename_copy, filename);
 
@@ -505,18 +593,8 @@ int adaptive_huffman_encode(){
 
     // if it's binary
     if(strcmp(extension, "txt") != 0){
-        while(fread(&data, sizeof(long int), 1, in) == 1){
-            // a line of data is of size 'long int'; it gets split into chars
-            char fragment1 = (data & 0xff000000L) >> 24;
-            char fragment2 = (data & 0x00ff0000L) >> 16;
-            char fragment3 = (data & 0x0000ff00L) >> 8;
-            char fragment4 = (data & 0x000000ffL);
-
-
-            execute_adaptive_huffman(root, fragment1, byte_buffer);
-            execute_adaptive_huffman(root, fragment2, byte_buffer);
-            execute_adaptive_huffman(root, fragment3, byte_buffer);
-            execute_adaptive_huffman(root, fragment4, byte_buffer);
+        while(fread(&data, sizeof(char), 1, in) == 1){
+            execute_adaptive_huffman(root, data, byte_buffer);
         }
     }
     // if it's a .txt
@@ -535,7 +613,19 @@ int adaptive_huffman_encode(){
     printf("\nNumber of nodes: %d", number_of_nodes);
     printf("\n(Consuming %zu bytes before free() )", sizeof(Node) * number_of_nodes);
 
+    char useful_bits = how_many_useful_bits(byte_buffer);
+    printf("\nUseful bits: %d", useful_bits);
     print_byte_buffer(byte_buffer);
+
+    FILE * out;
+    out = fopen(OUTPUT, "a");
+    if(out == NULL){
+        printf("Can't open file.");
+        exit(1);
+    }
+
+    fputc(useful_bits, out);
+    fclose(out);
 
     // DELETE LATER
     adaptive_huffman_decode(DECOMPRESSED);

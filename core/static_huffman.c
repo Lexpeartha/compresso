@@ -109,8 +109,8 @@ HeapNode * form_huffman_tree(Heap * heap){
         HeapNode * right = extract_min(heap);
 
         HeapNode * internal_node = malloc(sizeof(HeapNode));
-        internal_node->left_child = left;
-        internal_node->right_child = right;
+        internal_node->left_child = (struct HeapNode *) left;
+        internal_node->right_child = (struct HeapNode *) right;
         internal_node->data = 0; // default value indicating this is an INTERNAL NODE
         internal_node->frequency = left->frequency + right->frequency;
 
@@ -231,12 +231,48 @@ void print_hash(hash_entry ** table) {
     }
 }
 
-void print_output_hash(){
-    output_hash * s;
-    for (s = output_hash_table; s != NULL; s = s->hh.next) {
-        printf("\nSymbol: %c, huffman code: %s", s->symbol, s->huffman);
+void export_hash_table(hash_entry * hashTable, const char* filename) {
+    FILE* file = fopen(filename, "wb");
+    if (file == NULL) {
+        return;
     }
+
+    hash_entry * entry;
+    for (entry = hashTable; entry != NULL; entry = entry->hh.next) {
+        fprintf(file, "%c %ld\n", entry->symbol, entry->frequency);
+    }
+
+    fclose(file);
 }
+
+hash_entry * import_hash_table(const char* filename) {
+    FILE* file = fopen(filename, "rb");
+    if (file == NULL) {
+        printf("Error opening file for reading\n");
+        return NULL;
+    }
+
+    hash_entry * hashTable = NULL;
+    char symbol; // key
+    long int freq; // value
+
+    while (fscanf(file, "%c %ld\n", &symbol, &freq) != EOF) {
+        hash_entry * entry = (hash_entry*)malloc(sizeof(hash_entry));
+        if (entry == NULL) {
+            printf("Memory allocation error\n");
+            fclose(file);
+            return NULL;
+        }
+        entry->symbol = symbol;
+        entry->frequency = freq;
+
+        HASH_ADD(hh, hashTable, symbol, sizeof(char), entry);
+    }
+
+    fclose(file);
+    return hashTable;
+}
+
 
 // static_huffman_encode
 int static_huffman_encode() {
@@ -300,6 +336,8 @@ int static_huffman_encode() {
 
     print_hash(&hash_table);
 
+
+
     Heap * min_heap = form_min_heap();
 
     HeapNode * static_huffman_root = form_huffman_tree(min_heap);
@@ -346,6 +384,15 @@ int static_huffman_encode() {
     print_byte_buffer2(byte_buffer);
     if(byte_buffer->index != 7) printf("\nWarning! Byte buffer not empty!");
 
+    export_hash_table(hash_table, "hes_tabela.txt");
+
+    printf("\n\n");
+    print_hash(&hash_table);
+
+    hash_entry * novi = import_hash_table("hes_tabela.txt");
+
+    printf("\n\nOvo drugo:");
+    print_hash(&novi);
 
     return 0;
 }
