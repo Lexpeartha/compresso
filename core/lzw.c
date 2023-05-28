@@ -1,13 +1,14 @@
 
 #include"lzw.h"
+
 hash_entry *hash_table = NULL;
-void add_entry(char *key, long int value) {
+void add_entry(char *key, int value) {
     hash_entry *entry = malloc(sizeof(hash_entry));
     entry->key = key;
     entry->value = value;
     HASH_ADD_STR(hash_table, key, entry);
 }
-long int find_entry(char *key) {
+int find_entry(char *key) {
     hash_entry *entry;
 
     // Use UT hash to find the entry with the given key in the global hash table
@@ -36,15 +37,15 @@ void free_hash_table() {
         // make sure to free it before freeing the hash_entry struct.
     }
 }
-char* make_key(long int value1, long int value2) {
+char* make_key(int value1, int value2) {
     char* separator = "_";
-    char* key = malloc(sizeof(char) * (strlen(separator) + 2*sizeof(long int)));
-    sprintf(key, "%ld%s%ld", value1, separator, value2);
+    char* key = malloc(sizeof(char) * (strlen(separator) + 2*sizeof(int)));
+    sprintf(key, "%d%s%d", value1, separator, value2);
     return key;
 }
 void generate_random_filename(char* filename_buffer) {
     const char* prefix = "tmpfile";
-    long int fd;
+    int fd;
 
 
     size_t filename_len = strlen(prefix) + 10;
@@ -64,7 +65,7 @@ void free_dictionary(dictionary *dict) {
     if (dict != NULL) {
         if (dict->table != NULL) {
             free(dict->table); // free the memory allocated for the dict_element array
-            dict->table = NULL; // set the array polong inter to NULL to avoid dangling polong inter
+            dict->table = NULL; // set the array pointer to NULL to avoid dangling pointer
         }
         free(dict); // free the memory allocated for the dictionary structure
     }
@@ -74,7 +75,7 @@ void free_array(array *a) {
     a->arr = NULL;
     free(a);
 }
-void add_to_dict(dictionary *dict, long int prefix, long int new_char) {
+void add_to_dict(dictionary *dict, int prefix, int new_char) {
     if (dict->len >= dict->allocated) {
         dict->allocated += 1000000;
         dict->table = (dict_element*) realloc(dict->table, dict->allocated * sizeof(dict_element));
@@ -84,32 +85,32 @@ void add_to_dict(dictionary *dict, long int prefix, long int new_char) {
     add_entry(make_key(prefix, new_char), dict->len);
     dict->len++;
 }
-long int return_prefix(dictionary *dict, long int code){
+int return_prefix(dictionary *dict, int code){
     return dict->table[code].prefix;
 }
-long int return_new_char(dictionary *dict, long int code){
+int return_new_char(dictionary *dict, int code){
     return dict->table[code].new_char;
 }
-array* print_string(dictionary *dict, long int code){
+array* print_string(dictionary *dict, int code){
     array *arr;
     arr = (array*)malloc(sizeof(array));
     arr->len = 1;
-    arr->arr = (long int*)malloc(sizeof(long int));
+    arr->arr = (int*)malloc(sizeof(int));
     arr->arr[0] = return_new_char(dict, code);
-    long int tmp_prefix = return_prefix(dict, code);
-    long int tmp_char = return_new_char(dict, code);
+    int tmp_prefix = return_prefix(dict, code);
+    int tmp_char = return_new_char(dict, code);
     while(tmp_prefix != -1){
         tmp_char = return_new_char(dict, tmp_prefix);
         tmp_prefix = return_prefix(dict, tmp_prefix);
         arr->len++;
-        arr->arr = realloc(arr->arr, arr->len * sizeof(long int));
+        arr->arr = realloc(arr->arr, arr->len * sizeof(int));
         arr->arr[arr->len-1] = tmp_char;
     }
     array *return_arr = (array*)malloc(sizeof(array));
-    return_arr->arr = (long int*)malloc(arr->len*sizeof(long int));
+    return_arr->arr = (int*)malloc(arr->len*sizeof(int));
     return_arr->len = arr->len;
-    long int x = 0;
-    long int i;
+    int x = 0;
+    int i;
     for(i = arr->len-1;i >= 0;i--){
         return_arr->arr[x] = arr->arr[i];
         x++;
@@ -122,9 +123,9 @@ array* print_string(dictionary *dict, long int code){
 
 
 }
-long int return_first(dictionary *dict, long int code){
-    long int tmp_prefix = return_prefix(dict, code);
-    long int tmp_char = return_new_char(dict, code);
+int return_first(dictionary *dict, int code){
+    int tmp_prefix = return_prefix(dict, code);
+    int tmp_char = return_new_char(dict, code);
     while(tmp_prefix != -1){
         tmp_char = return_new_char(dict, tmp_prefix);
         tmp_prefix = return_prefix(dict, tmp_prefix);
@@ -137,7 +138,7 @@ char* compress_lzw(char* input_file_name){
     dict->table = (dict_element*)malloc(256*sizeof(dict_element));
     dict->len = 256;
     dict->allocated = 256;
-    for(long int i = 0;i < dict->len;i++){
+    for(int i = 0;i < dict->len;i++){
         dict->table[i].prefix = -1;
         dict->table[i].new_char = i;
         add_entry(make_key(-1, i) , i);
@@ -165,25 +166,24 @@ char* compress_lzw(char* input_file_name){
     fseek(fp_write, 0, SEEK_SET);
 
 
-    long int string = (long int) fgetc(fp);
-    long int x = 1;
-    long int character = 0;
-    long int tmp;
+    int string = (int) fgetc(fp);
+    int x = 1;
+    int character = 0;
+    int tmp;
     while(x < size) {
-        character = (long int) fgetc(fp);
+        character = (int) fgetc(fp);
         tmp = find_entry(make_key(string, character));
         if (tmp != -1)
             string = tmp;
         else {
-            fwrite(&string, sizeof(long int), 1, fp_write);
+            fwrite(&string, sizeof(int), 1, fp_write);
             add_to_dict(dict, string, character);
             string = character;
         }
         x++;
     }
-    double dict_size = dict->len;
-    dict_size = dict_size*8/1048576;
-    fwrite(&string, sizeof(long int), 1, fp_write);
+
+    fwrite(&string, sizeof(int), 1, fp_write);
     free_dictionary(dict);
     fclose(fp_write);
     free_hash_table();
@@ -193,13 +193,13 @@ char* compress_lzw(char* input_file_name){
 void decompress(char* input_file_name, char *output_file_name){
 
     FILE* fp_write = fopen(input_file_name, "rb");
-    long int size_write;
+    int size_write;
     fseek(fp_write, 0, SEEK_END);
     size_write = ftell(fp_write);
     fseek(fp_write, 0, SEEK_SET);
 
     FILE* output_file = fopen(output_file_name, "wb");
-    long int output_size;
+    int output_size;
     fseek(output_file, 0, SEEK_END);
     output_size = ftell(output_file);
     fseek(output_file, 0, SEEK_SET);
@@ -213,32 +213,32 @@ void decompress(char* input_file_name, char *output_file_name){
 
 
 
-    for(long int i = 0;i < dict->len;i++){
+    for(int i = 0;i < dict->len;i++){
         dict->table[i].prefix = -1;
         dict->table[i].new_char = i;
     }
-    long int tmp;
-    long int old_code;
-    long int new_code;
-    long int character = 0;
-    long int len = size_write/8;
+    int tmp;
+    int old_code;
+    int new_code;
+    int character = 0;
+    int len = size_write/4;
     array* tmp_arr;
     uint8_t convertor;
-    fread(&old_code, sizeof(long int), 1, fp_write);
+    fread(&old_code, sizeof(int), 1, fp_write);
     convertor = old_code;
     fwrite(&convertor, sizeof(uint8_t) , 1, output_file);
-    for(long int i = 1; i < len;i++){
-        fread(&new_code, sizeof(long int), 1, fp_write);
+    for(int j = 1; j < len;j++){
+        fread(&new_code, sizeof(int), 1, fp_write);
         if(new_code >= dict->len){
             tmp_arr = print_string(dict, old_code);
-            for(long int i = 0;i < tmp_arr->len;i++){
+            for(int i = 0;i < tmp_arr->len;i++){
                 convertor = tmp_arr->arr[i];
                 fwrite(&convertor, sizeof(uint8_t) , 1, output_file);
             }
 
 
             tmp_arr = print_string(dict, character);
-            for(long int i = 0;i < tmp_arr->len;i++){
+            for(int i = 0;i < tmp_arr->len;i++){
                 convertor = tmp_arr->arr[i];
                 fwrite(&convertor, sizeof(uint8_t) , 1, output_file);
             }
@@ -246,7 +246,7 @@ void decompress(char* input_file_name, char *output_file_name){
         }
         else{
             tmp_arr = print_string(dict, new_code);
-            for(long int i = 0;i < tmp_arr->len;i++){
+            for(int i = 0;i < tmp_arr->len;i++){
                 convertor = tmp_arr->arr[i];
                 fwrite(&convertor, sizeof(uint8_t), 1, output_file);
             }
@@ -255,7 +255,7 @@ void decompress(char* input_file_name, char *output_file_name){
         add_to_dict(dict, old_code, character);
         old_code = new_code;
     }
-    fclose(fp_write);
+
     free_array(tmp_arr);
     free_dictionary(dict);
     free_hash_table();
