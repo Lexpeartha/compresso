@@ -1,21 +1,8 @@
 #include "static_huffman.h"
+#define OUTPUT "static_output"
 
-/*
- * TO-DO:
- *
- * - obrati pažnju na dinamičku alokaciju (naročito kod formiranja min heap-a)
- * - pazi na memory leak-ove! Oslobodi memoriju koju zauzimaju promenljive
- * - uradi čitanje iz binarnog fajla i ispis u binarni fajl
- * - napravi rečnik za parove karakter - huffman kod
- * - error handling?
- *
- */
-
-
-
-int heap_parent(int index){
-    return (index - 1) / 2;
-}
+hash_entry * hash_table = NULL;
+output_hash * output_hash_table = NULL;
 
 int heap_left_child(int index){
     return (index * 2) + 1;
@@ -25,58 +12,53 @@ int heap_right_child(int index){
     return (index * 2) + 2;
 }
 
-void swap_heap_nodes(Heap * heap, int * ind){
+// A function that swaps two nodes in the heap
+// Arguments: indices of the two nodes that need to be swapped
+void swap_heap_nodes(Heap * heap, int ind1, int ind2){
 
-    // Funkcija koja zamenjuje dva čvora u heap-u.
-    // Dostavlja se indeks DETETA, i ono se menja sa svojim roditeljem.
+    long int temp1 = heap->nodes[ind1]->frequency;
+    char temp2 = heap->nodes[ind1]->data;
+    struct HeapNode * temp3 = heap->nodes[ind1]->left_child;
+    struct HeapNode * temp4 = heap->nodes[ind1]->right_child;
 
-    int index = *ind;
-    int new_index = heap_parent(index);
+    heap->nodes[ind1]->frequency = heap->nodes[ind2]->frequency;
+    heap->nodes[ind1]->data = heap->nodes[ind2]->data;
+    heap->nodes[ind1]->left_child = heap->nodes[ind2]->left_child;
+    heap->nodes[ind1]->right_child = heap->nodes[ind2]->right_child;
 
-    int temp1 = heap->nodes[index].frequency;
-    int temp2 = heap->nodes[index].data;
-    struct HeapNode * temp3 = heap->nodes[index].left_child;
-    struct HeapNode * temp4 = heap->nodes[index].right_child;
-
-    heap->nodes[index].frequency = heap->nodes[new_index].frequency;
-    heap->nodes[index].data = heap->nodes[new_index].data;
-    heap->nodes[index].left_child = heap->nodes[new_index].left_child;
-    heap->nodes[index].right_child = heap->nodes[new_index].right_child;
-
-    heap->nodes[new_index].frequency = temp1;
-    heap->nodes[new_index].data = temp2;
-    heap->nodes[new_index].left_child = temp3;
-    heap->nodes[new_index].right_child = temp4;
-
-    *ind = new_index;
+    heap->nodes[ind2]->frequency = temp1;
+    heap->nodes[ind2]->data = temp2;
+    heap->nodes[ind2]->left_child = temp3;
+    heap->nodes[ind2]->right_child = temp4;
 }
 
-// unos vrednosti iz fajla
-void insert_value(Heap * heap, int frequency, int datapoint, struct HeapNode * left, struct HeapNode * right){
-    int new_element_index = heap->len;
-    heap->len++;
-    heap->nodes[new_element_index].frequency = frequency;
-    heap->nodes[new_element_index].data = datapoint;
-    heap->nodes[new_element_index].left_child = left;
-    heap->nodes[new_element_index].right_child = right;
 
-    // heap-ifikovanje
-    int index = new_element_index;
-    while((heap->len != 0 ) && (heap->nodes[heap_parent(index)].frequency > heap->nodes[index].frequency)){
-        swap_heap_nodes(heap, &index);
+void insert_value(Heap * heap, HeapNode * new){
+
+    heap->len++;
+
+    int i = heap->len - 1;
+
+    while (i && new->frequency < heap->nodes[(i - 1) / 2]->frequency) {
+        heap->nodes[i] = heap->nodes[(i - 1) / 2];
+        i = (i - 1) / 2;
     }
 
+    heap->nodes[i] = new;
 }
 
-Heap * form_min_heap(array * frequencies, array * data) {
-    // inicijalizovanje heap-a
+Heap * form_min_heap() {
+    // initializing the heap
     Heap * heap = malloc(sizeof(Heap));
-    heap->nodes = malloc(data->len * sizeof(HeapNode));
+    heap->nodes = malloc(HASH_COUNT(hash_table) * sizeof(HeapNode *));
     heap->len = 0;
 
-    // formiranje heap-a
-    for (int i = 0; i < frequencies->len; i++) {
-        insert_value(heap, frequencies->arr[i], data->arr[i], NULL, NULL);
+    hash_entry * s;
+    for (s = hash_table; s != NULL; s = s->hh.next) {
+        HeapNode * new = malloc(sizeof(HeapNode));
+        new->frequency = s->frequency;
+        new->data = s->symbol;
+        insert_value(heap, new);
     }
 
     return heap;
@@ -88,83 +70,99 @@ int node_is_leaf(HeapNode * node){
 }
 
 void heapify(Heap * heap, int index){
+
     int left_index = heap_left_child(index);
     int right_index = heap_right_child(index);
 
     int minimum = index;
 
-    if(heap->nodes[left_index].frequency < heap->nodes[minimum].frequency && left_index < heap->len){
+    if(left_index < heap->len && heap->nodes[left_index]->frequency < heap->nodes[minimum]->frequency){
         minimum = left_index;
     }
-    if(heap->nodes[right_index].frequency < heap->nodes[minimum].frequency && right_index < heap->len){
+    if(right_index < heap->len && heap->nodes[right_index]->frequency < heap->nodes[minimum]->frequency){
         minimum = right_index;
     }
 
-    // da li treba promeniti redosled?
+    // change the order?
     if(minimum != index){
-        // da
-        int * throwaway = &minimum;
-        swap_heap_nodes(heap, throwaway);
+        // yes
+        swap_heap_nodes(heap, index, minimum);
         heapify(heap, minimum);
     }
 }
 
 HeapNode * extract_min(Heap * heap){
 
-    // Vrati podatke korena heap-a
+    HeapNode * returning = heap->nodes[0];
+    heap->nodes[0] = heap->nodes[heap->len - 1];
+    printf("\nExtracted: %c (%ld)", returning->data, returning->frequency);
 
-    // inicijalizovanje
-    HeapNode * returning = malloc(sizeof(HeapNode));
-    returning->frequency = heap->nodes[0].frequency;
-    returning->data = heap->nodes[0].data;
-    returning->left_child = heap->nodes[0].left_child;
-    returning->right_child = heap->nodes[0].right_child;
-
-    // provera
-    // printf("\n%d (%c) ", returning->frequency, returning->data);
-    //
-
-    // pomeranje poslednjeg elementa na koren
-    heap->nodes[0].frequency = heap->nodes[heap->len - 1].frequency;
-    heap->nodes[0].data = heap->nodes[heap->len - 1].data;
-    heap->nodes[0].left_child = heap->nodes[heap->len - 1].left_child;
-    heap->nodes[0].right_child = heap->nodes[heap->len - 1].right_child;
     heap->len--;
-
-    // Ovo izaziva segmentacionu grešku...
-    // heap = realloc(heap, heap->len * sizeof(HeapNode));
-
     heapify(heap, 0);
 
     return returning;
 }
 
-HeapNode * execute_static_huffman(Heap * heap){
-    while(heap->len > 1){
+HeapNode * form_huffman_tree(Heap * heap){
+    while(heap->len != 1){
         HeapNode * left = extract_min(heap);
         HeapNode * right = extract_min(heap);
-
-        // ako je levi čvor list, a desni nije, moraju da se zamene
-        if(node_is_leaf(left) && !node_is_leaf(right)){
-            HeapNode * temp = left;
-            left = right;
-            right = temp;
-        }
 
         HeapNode * internal_node = malloc(sizeof(HeapNode));
         internal_node->left_child = (struct HeapNode *) left;
         internal_node->right_child = (struct HeapNode *) right;
-        internal_node->data = 0; // default vrednost koja ukazuje da je ovo INTERNAL NODE
+        internal_node->data = 0; // default value indicating this is an INTERNAL NODE
         internal_node->frequency = left->frequency + right->frequency;
 
-        insert_value(heap, internal_node->frequency, internal_node->data, internal_node->left_child, internal_node->right_child);
+        // the newly formed internal node is returned to the heap
+        insert_value(heap, internal_node);
     }
 
     return extract_min(heap);
 }
 
-int get_huffman_codes(HeapNode * node, int counter, int code[]){
+void print_byte_buffer2(Byte_buffer * byte_buffer){
+    // print the contents of the byte_buffer
+    FILE * out;
+    out = fopen(OUTPUT, "a");
+    if(out == NULL){
+        printf("Can't open file.");
+        exit(1);
+    }
 
+    int len = 7 - byte_buffer->index;
+    if (len > 0) {
+        fputc(byte_buffer->byte, out);
+    }
+    fclose(out);
+    byte_buffer->byte = 0;
+    byte_buffer->index = 7;
+}
+
+void fill_byte_buffer2(Byte_buffer * byte_buffer, const char * string){
+    for(int i = 0; i < strlen(string); i++){
+        if(string[i] == '0'){
+            byte_buffer->byte &= ~(1 << byte_buffer->index);
+        }
+        else if(string[i] == '1'){
+            byte_buffer->byte |= (1 << byte_buffer->index);
+        }
+        byte_buffer->index--;
+        if(byte_buffer->index == -1) print_byte_buffer2(byte_buffer);
+    }
+}
+
+char * stringify(const int array[], int count){
+    char * temp = malloc((count + 1) * sizeof(char));
+    for(int i = 0; i < count; i++){
+        if(array[i] == 0) temp[i] = '0';
+        else temp[i] = '1';
+    }
+    temp[count] = 0;
+    return temp;
+}
+
+void get_huffman_codes(HeapNode * node, int counter, int  code[]){
 
     if(node->left_child != NULL){
         code[counter] = 0;
@@ -175,79 +173,226 @@ int get_huffman_codes(HeapNode * node, int counter, int code[]){
         get_huffman_codes((HeapNode *) node->right_child, counter + 1, code);
     }
     if(node_is_leaf(node)){
-        printf("Huffman code for %c is: ", node->data);
+        // making of dictionary
+        char * temp = stringify(code, counter);
+        add_output_hash_char(node->data, temp, &output_hash_table);
+
+        printf("\nHuffman code for %c is: ", node->data);
         for(int i = 0; i < counter; i++){
             printf("%d", code[i]);
         }
-        printf("\n");
     }
 }
 
-void print_heap(Heap * heap){
-    for(int i = 0; i < heap->len; i++){
-        printf("%d (%c) ", heap->nodes[i].frequency, heap->nodes[i].data);
+void delete_file2(char * filename){
+    if (remove(filename) != 0){
+        // if nothing is deleted
+        printf("\nNo file was deleted.");
     }
 }
 
-int static_huffman_start() {
+void add_char(char symbol, hash_entry ** table) {
+    hash_entry * s;
 
-    /* ZA TESTIRANJE. OBRISATI KASNIJE */
-    array * test;
-    test = malloc(sizeof(array));
-    test->arr = malloc( 6 * sizeof(int));
-    test->arr[0] = 15;
-    test->arr[1] = 13;
-    test->arr[2] = 2;
-    test->arr[3] = 3;
-    test->arr[4] = 4;
-    test->arr[5] = 9;
-    test->len = 6;
+    s = malloc(sizeof *s);
+    s->symbol = symbol;
+    s->frequency = 1;
 
-    array * characters = malloc(sizeof(array));
-    characters->arr = malloc(6 * sizeof(int));
-    characters->arr[0] = 'a';
-    characters->arr[1] = 'b';
-    characters->arr[2] = 'c';
-    characters->arr[3] = 'd';
-    characters->arr[4] = 'e';
-    characters->arr[5] = 'f';
-    characters->len = 6;
-    /* ZA TESTIRANJE. OBRISATI KASNIJE */
+    HASH_ADD(hh, *table, symbol, sizeof(char), s);
+}
+
+hash_entry * find_char(char symbol, hash_entry ** table) {
+    hash_entry * s;
+    HASH_FIND(hh, *table, &symbol, sizeof(char), s);
+    return s;
+}
+
+void add_output_hash_char(char symbol, char * string, output_hash ** table){
+    output_hash * s;
+
+    s = malloc(sizeof *s);
+    s->symbol = symbol;
+    s->huffman = malloc((strlen(string) + 1) * sizeof(char));
+    s->huffman = string;
+
+    HASH_ADD(hh, *table, symbol, sizeof(char), s);
+}
+
+char * huffman_code_hash(char symbol, output_hash ** table) {
+    output_hash * s;
+    HASH_FIND(hh, *table, &symbol, sizeof(char), s);
+    return s->huffman;
+}
+
+void print_hash(hash_entry ** table) {
+    hash_entry * s;
+    for (s = *table; s != NULL; s = s->hh.next) {
+        printf("\nsymbol: %c, freq: %ld", s->symbol, s->frequency);
+    }
+}
+
+void export_hash_table(hash_entry * hashTable, const char* filename) {
+    FILE* file = fopen(filename, "wb");
+    if (file == NULL) {
+        return;
+    }
+
+    hash_entry * entry;
+    for (entry = hashTable; entry != NULL; entry = entry->hh.next) {
+        fprintf(file, "%c %ld\n", entry->symbol, entry->frequency);
+    }
+
+    fclose(file);
+}
+
+hash_entry * import_hash_table(const char* filename) {
+    FILE* file = fopen(filename, "rb");
+    if (file == NULL) {
+        printf("Error opening file for reading\n");
+        return NULL;
+    }
+
+    hash_entry * hashTable = NULL;
+    char symbol; // key
+    long int freq; // value
+
+    while (fscanf(file, "%c %ld\n", &symbol, &freq) != EOF) {
+        hash_entry * entry = (hash_entry*)malloc(sizeof(hash_entry));
+        if (entry == NULL) {
+            printf("Memory allocation error\n");
+            fclose(file);
+            return NULL;
+        }
+        entry->symbol = symbol;
+        entry->frequency = freq;
+
+        HASH_ADD(hh, hashTable, symbol, sizeof(char), entry);
+    }
+
+    fclose(file);
+    return hashTable;
+}
 
 
-    // čitanje iz fajla
-//    char * file_name = malloc(100 * sizeof(char));
-//    printf("Input file name: ");
-//    scanf("%s", file_name);
-//    if(file_name[strlen(file_name) - 1] == '\n'){
-//        file_name[strlen(file_name) - 1] = 0;
-//    }
-//
-//    long int file_line;
-//    FILE * in;
-//    FILE * out;
-//
-//    out = fopen("n.bin", "wb");
-//    if(out == NULL){
-//        return 1;
-//    }
-//
-//    char primer[5] = {'a', 'b', 'c', 'd', '\0'};
-//
-//    fwrite(&primer, sizeof(char), 1, out);
+// static_huffman_encode
+int static_huffman_encode() {
+    char * filename = "input.txt";
+    //filename = "tmpfile-jJbl8hnull";
+    char * filename_copy = malloc(200 * sizeof(char));
+    filename_copy = strcpy(filename_copy, filename);
 
-//    fread(&tmp, sizeof(long int), 1, fp);
+    // determining the extension of the file
+    char * extension = malloc(10 * sizeof(char));
+    char * token = strtok(filename_copy, ".");
+    if(token != NULL){
+        token = strtok(NULL, ".");
+    }
+    if(token != NULL){
+        strcpy(extension, token);
+    }
+    else {
+        strcpy(extension, "other");
+    }
 
-    Heap * min_heap = form_min_heap(test, characters);
+    FILE * in;
+    in = fopen(filename, "rb");
 
-    //Provera da je min heap dobro napravljen
-    //print_heap(min_heap);
+    if(in == NULL){
+        printf("Can't open file.\n");
+        exit(1);
+    }
 
-    HeapNode * static_huffman_root = execute_static_huffman(min_heap);
+
+    // reading from a file
+    char data;
+
+    int count = 0;
+    // if it's binary
+    if(strcmp(extension, "txt") != 0){
+        while(fread(&data, sizeof(char), 1, in) == 1){
+
+            hash_entry * s = find_char(data, &hash_table);
+            if(s == NULL) add_char(data, &hash_table);
+            else s->frequency++;
+
+            count += 1;
+        }
+    }
+    // if it's a .txt
+    else {
+        char c;
+        while((c = fgetc(in)) != EOF){
+            count++;
+            hash_entry * s = find_char(c, &hash_table);
+            if(s == NULL) add_char(c, &hash_table);
+            else s->frequency++;
+        }
+
+    }
+
+    printf("\nNumber of read chars: %d", count);
+
+    fclose(in);
+
+    print_hash(&hash_table);
+
+
+
+    Heap * min_heap = form_min_heap();
+
+    HeapNode * static_huffman_root = form_huffman_tree(min_heap);
+
 
     int throwaway[5000];
     int counter = 0;
     get_huffman_codes(static_huffman_root, counter, throwaway);
+
+
+    in = fopen(filename, "rb");
+
+    // delete the output file if it already exists
+    delete_file2(OUTPUT);
+
+    if(in == NULL){
+        printf("Can't open file.\n");
+        exit(1);
+    }
+
+    Byte_buffer * byte_buffer = malloc(sizeof(Byte_buffer));
+    byte_buffer->byte = 0;
+    byte_buffer->index = 7;
+
+    // iterating through the file again, and writing codes into export file
+    if(strcmp(extension, "txt") != 0){
+        while(fread(&data, sizeof(char), 1, in) == 1){
+
+        }
+    }
+    // if it's a .txt
+    else {
+        char c;
+        printf("\nSize of dictionary: %d", HASH_COUNT(output_hash_table));
+        while((c = fgetc(in)) != EOF){
+            char * code = huffman_code_hash(c, &output_hash_table);
+            fill_byte_buffer2(byte_buffer, code);
+        }
+
+    }
+
+    fclose(in);
+
+    print_byte_buffer2(byte_buffer);
+    if(byte_buffer->index != 7) printf("\nWarning! Byte buffer not empty!");
+
+    export_hash_table(hash_table, "hes_tabela.txt");
+
+    printf("\n\n");
+    print_hash(&hash_table);
+
+    hash_entry * novi = import_hash_table("hes_tabela.txt");
+
+    printf("\n\nOvo drugo:");
+    print_hash(&novi);
 
     return 0;
 }
