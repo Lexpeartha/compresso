@@ -55,8 +55,8 @@ void free_file_configuration_struct(file_configuration* config) {
 
 int read_config_file(const char* filename, file_configuration* config) {
     printf("Reading config file %s\n", filename);
-
-
+    if(config == NULL)
+        return 1;
 
     char full_path[MAX_LINE_LENGTH/4];
     sprintf(full_path, "../%s", filename);
@@ -101,7 +101,6 @@ int update_config_file(const char* filename, file_configuration* config) {
 
     FILE* fp = fopen(full_path, "w");
     if (fp == NULL) {
-        fprintf(stderr, "Error: could not open file %s\n", filename);
         return 1;
     }
 
