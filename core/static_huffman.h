@@ -6,11 +6,12 @@
 #include <stdint.h>
 #include <unistd.h>
 #include "uthash.h"
-#define MAX_HUFFMAN_CODE_LEN 100000
+#define MAX_HUFFMAN_CODE_LEN 500
+#define MAX_STACK_SIZE 256
 
 typedef struct {
     long int frequency;
-    char data;
+    uint8_t data;
     struct HeapNode * left_child;
     struct HeapNode * right_child;
 } HeapNode;
@@ -21,21 +22,32 @@ typedef struct {
 } Heap;
 
 typedef struct {
-    char symbol;
+    uint8_t symbol;
     long int frequency;
     UT_hash_handle hh;
 } hash_entry;
 
 typedef struct {
-    char symbol;
+    uint8_t symbol;
     char * huffman;
     UT_hash_handle hh;
 } output_hash;
 
 typedef struct {
-    unsigned char byte;
+    uint8_t byte;
     short int index;
 } Byte_buffer;
 
-void add_output_hash_char(char symbol, char * string, output_hash ** table);
+typedef struct  {
+    HeapNode* node;
+    int counter;
+    int code[MAX_HUFFMAN_CODE_LEN];
+} StackNode;
+
+typedef struct {
+    StackNode data[MAX_STACK_SIZE];
+    int top;
+} Stack;
+
+void add_output_hash_char(uint8_t symbol, char * string, output_hash ** table);
 #endif //SPECIJALNAGRUPA_MAIN_H

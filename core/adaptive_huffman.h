@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #ifndef COMPRESSO_ADAPTIVE_HUFFMAN_H
 #define COMPRESSO_ADAPTIVE_HUFFMAN_H
@@ -12,7 +13,8 @@ typedef struct Node {
 
     long int weight;
     long int identifier;
-    char symbol;
+    uint8_t symbol;
+    int comparison;
 } Node;
 
 typedef struct {
@@ -26,8 +28,10 @@ typedef struct {
 } array;
 
 typedef struct {
-    unsigned char byte;
+    uint8_t byte;
     short int index;
 } Byte_buffer;
+
+
 
 #endif //COMPRESSO_ADAPTIVE_HUFFMAN_H

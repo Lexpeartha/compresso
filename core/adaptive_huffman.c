@@ -1,64 +1,12 @@
 #include "adaptive_huffman.h"
 #define OUTPUT "adaptive_output"
-#define DECOMPRESSED "decompressed"
 #define BUFFER_SIZE 100
-#define NYT (-10) // a randomly picked number that won't occur in files
-#define INTERNAL_NODE (-11) // also a random number, used to identify what is an internal node
+#define NYT 255 // a randomly picked number that won't occur in files
+#define INTERNAL_NODE 254 // also a random number, used to identify what is an internal node
 #define MAX 10000
 
 int number_of_nodes = 0;
-
-void print_byte_buffer(Byte_buffer * byte_buffer){
-    // print the contents of the byte_buffer
-    FILE * out;
-    out = fopen(OUTPUT, "a");
-    if(out == NULL){
-        printf("Can't open file.");
-        exit(1);
-    }
-
-    int len = 7 - byte_buffer->index;
-    if (len > 0) {
-        fputc(byte_buffer->byte, out);
-    }
-    fclose(out);
-    byte_buffer->byte = 0;
-    byte_buffer->index = 7;
-}
-
-void fill_byte_buffer(Byte_buffer * byte_buffer, char * string, int is_ascii, char ascii_symbol){
-    // if the buffer needs to be filled with an ascii character
-    if(is_ascii){
-        for(int i = 0; i < 8; i++){
-            // iterating from LSB to MSB
-            if(ascii_symbol & 1){
-                // it's a 1
-                byte_buffer->byte |= (1 << byte_buffer->index);
-            }
-            else {
-                // it's a 0
-                byte_buffer->byte &= ~(1 << byte_buffer->index);
-            }
-            byte_buffer->index--;
-            if(byte_buffer->index == -1) print_byte_buffer(byte_buffer);
-
-            ascii_symbol >>= 1;
-        }
-    }
-    // if the buffer needs to be filled with 1s and 0s
-    else {
-        for(int i = 0; i < strlen(string); i++){
-            if(string[i] == '0'){
-                byte_buffer->byte &= ~(1 << byte_buffer->index);
-            }
-            else if(string[i] == '1'){
-                byte_buffer->byte |= (1 << byte_buffer->index);
-            }
-            byte_buffer->index--;
-            if(byte_buffer->index == -1) print_byte_buffer(byte_buffer);
-        }
-    }
-}
+int number_of_asciis = 0;
 
 Node * create_empty_tree(){
     // initialization of an empty tree
@@ -151,7 +99,7 @@ void update_identifiers(Node * root){
 
 
 // returns the node that has the target symbol
-Node * get_node(Node * node, char symbol){
+Node * get_node(Node * node, unsigned char symbol){
     if(node != NULL){
         if(node->symbol == symbol){
             return node;
@@ -170,10 +118,10 @@ Node * get_node(Node * node, char symbol){
 
 
 // writes out the code of a leaf
-char * path_to_node(Node * root, char symbol){
+uint8_t * path_to_node(Node * root, uint8_t symbol, int * len){
     Node * found_node = get_node(root, symbol);
     Node * next_node;
-    char * buffer = malloc(BUFFER_SIZE * sizeof(char));
+    uint8_t * buffer = malloc(BUFFER_SIZE * sizeof(uint8_t));
     int buffer_length = 0;
 
     while (found_node->parent != NULL){
@@ -188,13 +136,14 @@ char * path_to_node(Node * root, char symbol){
     }
 
     // reversing the string, because it's written in reverse
-    char * reverse = malloc(buffer_length* sizeof(char));
+    uint8_t * reverse = malloc(buffer_length* sizeof(uint8_t));
     int count = 0;
 
     for(int i = buffer_length - 1; i >= 0; i--){
         reverse[count++] = buffer[i];
     }
     reverse[count] = 0;
+    *len = buffer_length;
 
     free(buffer);
 
@@ -209,41 +158,9 @@ void delete_file(char * filename){
     }
 }
 
-void transmit_code(Node * root, char symbol, int exists, Byte_buffer * byte_buffer){
-    if(root->left_child == NULL && root->right_child == NULL){
-        // the output file needs to be deleted first, because codes are appended
-        delete_file(OUTPUT);
-    }
-
-    char * buffer = NULL;
-
-    // if the tree is empty
-    if(root->left_child == NULL && root->right_child == NULL){
-        //printf("%c", symbol);
-        fill_byte_buffer(byte_buffer, "", 1, symbol);
-    }
-    // if it's the first occurrence
-    else if (exists == 0){
-
-        // find NYT node
-        buffer = path_to_node(root, NYT);
-        fill_byte_buffer(byte_buffer, buffer, 0, 'a');
-
-        // print out the new code for the symbol
-        fill_byte_buffer(byte_buffer, "", 1, symbol);
-    }
-    // if a char already present in the tree is transmitted
-    else {
-        buffer = path_to_node(root, symbol);
-        fill_byte_buffer(byte_buffer, buffer, 0, 'a');
-
-    }
-    free(buffer);
-}
-
 // a function that 'extends' the NYT node; NYT becomes an internal node R, the left child becomes
 // the new NYT, and the right one is for the symbol S
-void spawn_node(Node * root, char symbol){
+void spawn_node(Node * root, uint8_t symbol){
     Node * nyt_node = get_node(root, NYT);
 
     nyt_node->left_child = malloc(sizeof(Node));
@@ -320,7 +237,7 @@ Node * swap_nodes(Node * node1, Node * node2){
     }
 
     // swapping symbols
-    char temp_symbol = node1->symbol;
+    unsigned char temp_symbol = node1->symbol;
     node1->symbol = node2->symbol;
     node2->symbol = temp_symbol;
 
@@ -360,7 +277,7 @@ void update_weights(Node * root, Node * mobile_node){
     }
 }
 
-void update_tree(Node * root, char symbol){
+void update_tree(Node * root, uint8_t symbol){
     update_identifiers(root);
     if(symbol == NYT){
         // arguments: root, parent of a parent of an NYT node
@@ -373,26 +290,109 @@ void update_tree(Node * root, char symbol){
     }
 }
 
+void print_byte_buffer(Byte_buffer * byte_buffer, char output_filename_temp[]){
+    // print the contents of the byte_buffer
+    FILE * out;
+    out = fopen(output_filename_temp, "ab");
+    if(out == NULL){
+        printf("Can't open file.");
+        exit(1);
+    }
+
+    int len = 7 - byte_buffer->index;
+    if (len > 0) {
+        fwrite(&byte_buffer->byte, sizeof(uint8_t), 1, out);
+    }
+    fclose(out);
+    byte_buffer->byte = 0;
+    byte_buffer->index = 7;
+}
+
+void fill_byte_buffer(Byte_buffer * byte_buffer, const uint8_t * string, int len, char output_filename_temp[]){
+    for(int i = 0; i < len; i++){
+        if(string[i] == '0'){
+            byte_buffer->byte &= ~(1 << byte_buffer->index);
+        }
+        else if(string[i] == '1'){
+            byte_buffer->byte |= (1 << byte_buffer->index);
+        }
+        byte_buffer->index--;
+        if(byte_buffer->index == -1) print_byte_buffer(byte_buffer, output_filename_temp);
+    }
+
+}
+
+void transmit_code(Node * root, uint8_t symbol, int exists, Byte_buffer * byte_buffer, char output_filename[], char output_filename_temp[]){
+
+    if(root->left_child == NULL && root->right_child == NULL){
+        // the output file needs to be deleted first, because codes are appended
+        delete_file(output_filename);
+        delete_file(output_filename_temp);
+    }
+
+    // output_filename --> ASCII codes
+    // output_filename_temp --> 1s and 0s
+
+    uint8_t * buffer = NULL;
+
+    // if the tree is empty
+    if(root->left_child == NULL && root->right_child == NULL){
+        //printf("%c", symbol);
+        FILE * out;
+        out = fopen(output_filename, "ab");
+        fwrite(&symbol, sizeof(uint8_t), 1, out);
+        fclose(out);
+        number_of_asciis = 1;
+    }
+        // if it's the first occurrence
+    else if (exists == 0){
+        int len = 0;
+        // find NYT node
+        buffer = path_to_node(root, NYT, &len);
+        //printf("%s", buffer);
+        fill_byte_buffer(byte_buffer, buffer, len, output_filename_temp);
+
+        // print out the new code for the symbol
+        //printf("%c", symbol);
+
+        FILE * out;
+        out = fopen(output_filename, "ab");
+        fwrite(&symbol, sizeof(uint8_t), 1, out);
+        fclose(out);
+
+        number_of_asciis++;
+    }
+        // if a char already present in the tree is transmitted
+    else {
+        int len = 0;
+        buffer = path_to_node(root, symbol, &len);
+        //printf("%s", buffer);
+        fill_byte_buffer(byte_buffer, buffer, len, output_filename_temp);
+
+    }
+    free(buffer);
+}
+
 // processing of one char by the huffman algorithm
-void execute_adaptive_huffman(Node * root, char symbol, Byte_buffer * byte_buffer){
+void execute_adaptive_huffman(Node * root, unsigned char symbol, Byte_buffer * byte_buffer, char output_filename[], char output_filename_temp[]){
     // symbol already exists
     Node * found_node = get_node(root, symbol);
-    char node_symbol = NYT;
+    uint8_t node_symbol = NYT;
 
     if (found_node != NULL){
-        transmit_code(root, symbol, 1, byte_buffer);
+        transmit_code(root, symbol, 1, byte_buffer, output_filename, output_filename_temp);
         node_symbol = symbol;
     }
-    // symbol does NOT exist
+        // symbol does NOT exist
     else {
-        transmit_code(root, symbol, 0, byte_buffer);
+        transmit_code(root, symbol, 0, byte_buffer, output_filename, output_filename_temp);
         spawn_node(root, symbol);
     }
     update_tree(root, node_symbol);
 
 }
 
-char navigate(Node * root, const char * buffer, int buffer_len){
+uint8_t navigate(Node * root, const uint8_t buffer[], int buffer_len){
     Node * temp2 = root;
     for(int i = 0; i < buffer_len; i++){
         if(buffer[i] == '0') temp2 = temp2->left_child;
@@ -401,41 +401,24 @@ char navigate(Node * root, const char * buffer, int buffer_len){
     return temp2->symbol;
 }
 
-char charify_ascii(char input){
-    char reversed = 0;
-    int number_of_bits = 8; // Number of bits in a char
-
-    for (int i = 0; i < number_of_bits; i++) {
-        reversed <<= 1;
-        if (input & 1)
-            reversed |= 1;
-        input >>= 1;
-    }
-
-    return reversed;
-}
-
-void remove_first_element(char * buffer, int * len){
+void remove_first_element(uint8_t * buffer, int * len){
     for(int i = 0; i < *len; i++){
         buffer[i] = buffer[i + 1];
     }
     (*len)--;
 }
 
-char charify_string(char * string){
-    char x = strtol(string, NULL, 2);
-    return charify_ascii(x);
-}
-
 int adaptive_huffman_decode(char * filename){
 
-    printf("\nDecoding has started.");
-    delete_file(filename);
+    char filename_copy[150];
+    strcpy(filename_copy, filename);
+    char decompressed[150];
+    sprintf(decompressed, "%s-DECOMPRESSED", filename);
 
     FILE * in;
     FILE * out;
-    in = fopen(OUTPUT, "rb");
-    out = fopen(filename, "ab");
+    in = fopen(filename, "rb");
+    out = fopen(decompressed, "ab");
     if(in == NULL){
         printf("Can't open file.\n");
         exit(1);
@@ -445,102 +428,115 @@ int adaptive_huffman_decode(char * filename){
         exit(1);
     }
 
-    char data;
-
     number_of_nodes = 0;
-    Node * root2 = create_empty_tree();
+    Node * root = create_empty_tree();
+    uint8_t data;
+    uint8_t aux;
+
+    char * token = strtok(filename_copy, "-");
+    if(token == NULL){
+        printf("Invalid file selected.");
+        exit(1);
+    }
+
+    int number_of_chars = atoi(token);
+    token = strtok(NULL, "-");
+
+    if(token == NULL){
+        printf("Invalid file selected.");
+        exit(1);
+    }
+    int useful_bits = atoi(token);
+
+    int char_pointer = 0;
+    int currently_reading = number_of_chars;
+
+
+    uint8_t temp_new[150];
+    int temp_new_len = 0;
+    uint8_t buffer[150];
+    int buffer_len = 0;
+
 
     fseek(in, 0, SEEK_END);
     long int size = ftell(in);
     long int counter = 0;
-    printf("\n\nSize of compressed file: %ld B", size);
-    fseek(in, 0, SEEK_SET);
+    fseek(in, currently_reading, SEEK_SET);
 
-    fread(&data, sizeof(char), 1, in);
-    spawn_node(root2, charify_ascii(data));
-    char x = charify_ascii(data);
-    counter++;
-    fputc(x, out);
+    while(counter < size - number_of_chars){
+        memset(buffer, 0, 150);
+        fseek(in, currently_reading, SEEK_SET);
+        if(counter == size - 1 - number_of_chars && useful_bits != 0){
+            uint8_t ultimate;
+            fread(&ultimate, sizeof(uint8_t), 1, in);
 
-    char * buffer = malloc(MAX * sizeof(char));
-    char temp_new[MAX];
-    int temp_new_len = 0;
-    int buffer_len = 0;
-    int go = 1;
 
-    while(counter <= size - 2 && go){
-        fread(&data, sizeof(char), 1, in);
+
+
+            for (int i = 7; i >= 7 - useful_bits + 1; i--) {
+                int bit = (ultimate >> i) & 1;
+                if(bit == 0) buffer[buffer_len++] = '0';
+                else buffer[buffer_len++] = '1';
+            }
+            //printf("\nProcitano: %s", buffer);
+
+        }
+        else{
+            fread(&data, sizeof(uint8_t), 1, in);
+
+
+            // transfer the bits from the newly read byte to a buffer
+            for (int i = 7; i >= 0; i--) {
+                int bit = (data >> i) & 1;
+                if(bit == 0) buffer[buffer_len++] = '0';
+                else buffer[buffer_len++] = '1';
+            }
+            //printf("\nProcitano: %s", buffer);
+        }
         counter++;
+        currently_reading++;
 
-        // transfer the bits from the newly read byte to a buffer
-        for (int i = 7; i >= 0; i--) {
-            int bit = (data >> i) & 1;
-            if(bit == 0) buffer[buffer_len++] = '0';
-            else buffer[buffer_len++] = '1';
+        if(number_of_nodes == 1){
+            fseek(in, char_pointer, SEEK_SET);
+            fread(&aux, sizeof(uint8_t), 1, in);
+
+            spawn_node(root, aux);
+
+            fwrite(&aux, sizeof(uint8_t), 1, out);
+            char_pointer++;
+            fseek(in, currently_reading, SEEK_SET);
         }
 
-        // try to navigate
         while(1){
             temp_new[temp_new_len++] = buffer[0];
             remove_first_element(buffer, &buffer_len);
-            char navigate_result = navigate(root2, temp_new, temp_new_len);
+            uint8_t navigate_result = navigate(root, temp_new, temp_new_len);
 
             if(navigate_result == NYT){
-                // read another byte, except if it's the penultimate
-                if(counter + 1 == size - 1) {
-                    go = 0;
-                    break;
-                }
-                else {
-                    fread(&data, sizeof(char), 1, in);
-                    counter++;
-                    // fill this into the buffer again
-                    for (int i = 7; i >= 0; i--) {
-                        int bit = (data >> i) & 1;
-                        if(bit == 0) buffer[buffer_len++] = '0';
-                        else buffer[buffer_len++] = '1';
-                    }
+                // print the next char
+                fseek(in, char_pointer, SEEK_SET);
+                fread(&aux, sizeof(uint8_t), 1, in);
+                fwrite(&aux, sizeof(uint8_t), 1, out);
+                char_pointer++;
+                memset(temp_new, 0, 150);
+                temp_new_len = 0;
 
-                    // charify first eight bits of buffer
-                    temp_new_len = 0;
-                    for(int i = 0; i < 8; i++){
-                        temp_new[temp_new_len++] = buffer[0];
-                        remove_first_element(buffer, &buffer_len);
-                    }
+                spawn_node(root, aux);
+                update_tree(root, NYT);
 
-                    char symbol = charify_string(temp_new);
-                    spawn_node(root2, symbol);
-                    fputc(symbol, out);
-                    temp_new_len = 0;
-                    update_tree(root2, NYT);
-                }
             }
-            else if(navigate_result != INTERNAL_NODE){
-                // write the symbol, update tree
-                fputc(navigate_result, out);
-                update_tree(root2, navigate_result);
+            else if (navigate_result != INTERNAL_NODE){
+                fwrite(&navigate_result, sizeof(uint8_t), 1, out);
+                update_tree(root, navigate_result);
+                memset(temp_new, 0, 150);
                 temp_new_len = 0;
             }
 
-            if(buffer_len == 0) break;
+            if(buffer_len <= 0) break;
+
         }
+
     }
-
-    // process the last two lines of .bin file
-    char penultimate, ultimate;
-    fread(&penultimate, sizeof(char), 1, in);
-    fread(&ultimate, sizeof(char), 1, in);
-
-    int useful_bits = (int) ultimate;
-    for (int i = 7; i >= 8 - useful_bits; i--) {
-        int bit = (data >> i) & 1;
-        if(bit == 0) buffer[buffer_len++] = '0';
-        else buffer[buffer_len++] = '1';
-    }
-
-
-    fclose(out);
-    fclose(in);
 
 
     return 0;
@@ -550,29 +546,22 @@ void free_tree(Node * root){
     // do nothing
 }
 
-char how_many_useful_bits(Byte_buffer * byte_buffer){
-    return (char) (7 - byte_buffer->index);
+uint8_t how_many_useful_bits(Byte_buffer * byte_buffer){
+    return (uint8_t) (7 - byte_buffer->index);
 }
 
 // adaptive_huffman_encode
 int adaptive_huffman_encode(){
-    char * filename = "input.txt";
-    //filename = "tmpfile-jJbl8hnull";
-    char * filename_copy = malloc(200 * sizeof(char));
-    filename_copy = strcpy(filename_copy, filename);
+    char filename[150] = "input.txt";
+    strcpy(filename, "primer.doc");
+    //strcpy(filename, "tmpfile-Drxw2V");
+    char output_filename[150];
+    long rand = random() % 100 + 1;
+    long rand2 = random() % 100 + 1;
+    sprintf(output_filename, "adaptive_output");
 
-    // determining the extension of the file
-    char * extension = malloc(10 * sizeof(char));
-    char * token = strtok(filename_copy, ".");
-    if(token != NULL){
-        token = strtok(NULL, ".");
-    }
-    if(token != NULL){
-        strcpy(extension, token);
-    }
-    else {
-        strcpy(extension, "other");
-    }
+    char output_filename_temp[150];
+    sprintf(output_filename_temp, "%s-temp", output_filename);
 
     Node * root = create_empty_tree();
 
@@ -584,58 +573,59 @@ int adaptive_huffman_encode(){
         exit(1);
     }
 
-
     // reading from a file
-    char data;
+    uint8_t data;
     Byte_buffer * byte_buffer = malloc(sizeof(Byte_buffer));
     byte_buffer->byte = 0;
     byte_buffer->index = 7;
 
-    // if it's binary
-    if(strcmp(extension, "txt") != 0){
-        while(fread(&data, sizeof(char), 1, in) == 1){
-            execute_adaptive_huffman(root, data, byte_buffer);
-        }
+    while(fread(&data, sizeof(uint8_t), 1, in) == 1){
+        execute_adaptive_huffman(root, data, byte_buffer, output_filename, output_filename_temp);
     }
-    // if it's a .txt
-    else {
-        char c;
-        int count = 0;
-        while((c = fgetc(in)) != EOF){
-            count++;
-            execute_adaptive_huffman(root, c, byte_buffer);
-        }
-        printf("\nNumber of read chars: %d", count);
-    }
+
 
     fclose(in);
 
     printf("\nNumber of nodes: %d", number_of_nodes);
     printf("\n(Consuming %zu bytes before free() )", sizeof(Node) * number_of_nodes);
 
-    char useful_bits = how_many_useful_bits(byte_buffer);
+    uint8_t useful_bits = how_many_useful_bits(byte_buffer);
     printf("\nUseful bits: %d", useful_bits);
-    print_byte_buffer(byte_buffer);
+    // printing what's left in the byte buffer
+    print_byte_buffer(byte_buffer, output_filename_temp);
 
-    FILE * out;
-    out = fopen(OUTPUT, "a");
-    if(out == NULL){
-        printf("Can't open file.");
-        exit(1);
+
+    printf("\n\nNumber of ASCIIs: %d", number_of_asciis);
+
+
+    char changed_name[150];
+    // %s-NUMBER OF ASCIIS-NUMBER OF USEFUL BITS AT THE PENULTIMATE BYTE
+    sprintf(changed_name, "%d-%d-%s", number_of_asciis, useful_bits, output_filename);
+    FILE * destination;
+    FILE * source;
+    destination = fopen(output_filename, "ab");
+    source = fopen(output_filename_temp, "rb");
+
+    while(fread(&data, sizeof(uint8_t), 1, source) == 1){
+        fwrite(&data, sizeof(uint8_t), 1, destination);
     }
 
-    fputc(useful_bits, out);
-    fclose(out);
+    // delete temp file
+    delete_file(output_filename_temp);
+
+
+    rename(output_filename, changed_name);
+
+
+    fclose(destination);
+    fclose(source);
+
 
     // DELETE LATER
-    adaptive_huffman_decode(DECOMPRESSED);
+    adaptive_huffman_decode(changed_name);
 
     free(root);
-    free(filename_copy);
     free(byte_buffer);
-    free(extension);
-
-
 
     return 0;
 }
