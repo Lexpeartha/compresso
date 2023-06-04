@@ -4,6 +4,8 @@
 GtkTextBuffer *log_buffer = NULL;
 GtkWindow *global_window = NULL;
 GtkWidget *compression_switch = NULL;
+GtkWidget *files_list = NULL;
+char **files = NULL;
 
 int setup_ui(GtkWidget *window) {
     // Initiates GridLayout
@@ -28,6 +30,11 @@ int setup_ui(GtkWidget *window) {
 
     // Adds the grid to the window
     gtk_window_set_child(GTK_WINDOW(window), grid);
+    g_signal_connect(window, "destroy", G_CALLBACK(on_window_closed), NULL);
+
+    // Set up variables used throughout the program
+    files = calloc(1, sizeof(char *));
+    files[0] = NULL;
 
     return 0;
 }
@@ -98,6 +105,34 @@ int initiate_files_container(GtkWidget *grid) {
     GtkWidget *files_frame = gtk_frame_new("Chosen Files:");
     grid_position position = {0, 3, 3, 3};
 
+    GtkWidget *clear_files_button = gtk_button_new_with_label("Clear");
+    g_signal_connect(clear_files_button, "clicked", G_CALLBACK(clear_files), NULL);
+    GtkWidget *add_files_button = gtk_button_new_with_label("Add");
+    g_signal_connect(add_files_button, "clicked", G_CALLBACK(show_add_files_dialog), NULL);
+    GtkWidget *files_buttons_container = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, INNER_PADDING);
+    gtk_widget_set_halign(files_buttons_container, GTK_ALIGN_END);
+    gtk_box_append(GTK_BOX(files_buttons_container), clear_files_button);
+    gtk_box_append(GTK_BOX(files_buttons_container), add_files_button);
+
+    files_list = gtk_list_box_new();
+    gtk_widget_set_vexpand(files_list, TRUE);
+    gtk_widget_set_hexpand(files_list, TRUE);
+    gtk_list_box_set_selection_mode(GTK_LIST_BOX(files_list), GTK_SELECTION_NONE);
+    gtk_list_box_set_activate_on_single_click(GTK_LIST_BOX(files_list), FALSE);
+
+    GtkWidget *files_list_scrollable_container = gtk_scrolled_window_new();
+    gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(files_list_scrollable_container), files_list);
+
+    GtkWidget *wrapper = gtk_box_new(GTK_ORIENTATION_VERTICAL, INNER_PADDING);
+    gtk_box_append(GTK_BOX(wrapper), files_buttons_container);
+    gtk_box_append(GTK_BOX(wrapper), files_list_scrollable_container);
+    gtk_frame_set_child(GTK_FRAME(files_frame), wrapper);
+
+    gtk_widget_set_margin_top(wrapper, INNER_PADDING);
+    gtk_widget_set_margin_bottom(wrapper, INNER_PADDING);
+    gtk_widget_set_margin_start(wrapper, INNER_PADDING);
+    gtk_widget_set_margin_end(wrapper, INNER_PADDING);
+
     gtk_grid_attach(GTK_GRID(grid), files_frame, position.column, position.row, position.width, position.height);
 
     return 0;
@@ -106,8 +141,6 @@ int initiate_files_container(GtkWidget *grid) {
 int initiate_controls_container(GtkWidget *grid) {
     GtkWidget *controls_frame = gtk_frame_new("Controls:");
     grid_position position = {4, 0, 3, 6};
-
-    gtk_grid_attach(GTK_GRID(grid), controls_frame, position.column, position.row, position.width, position.height);
 
     GtkWidget *switch_label = gtk_label_new("Compress/Decompress:");
     compression_switch = gtk_switch_new();
@@ -135,6 +168,7 @@ int initiate_controls_container(GtkWidget *grid) {
     gtk_box_append(GTK_BOX(wrapper), control_buttons_container);
 
     gtk_frame_set_child(GTK_FRAME(controls_frame), wrapper);
+    gtk_grid_attach(GTK_GRID(grid), controls_frame, position.column, position.row, position.width, position.height);
 
     return 0;
 }
@@ -188,10 +222,76 @@ void show_about_dialog() {
     gtk_widget_set_visible(dialog, TRUE);
 }
 
+void update_files_list() {
+    GtkListBoxRow *row = gtk_list_box_get_row_at_index(GTK_LIST_BOX(files_list), 0);
+    while (row != NULL) {
+        gtk_list_box_remove(GTK_LIST_BOX(files_list), GTK_WIDGET(row));
+        row = gtk_list_box_get_row_at_index(GTK_LIST_BOX(files_list), 0);
+    }
+
+    for (int i = 0; files[i] != NULL; i++) {
+        g_print("File number %d selected: %s\n", i + 1, files[i]);
+        gtk_list_box_append(GTK_LIST_BOX(files_list), gtk_label_new(files[i]));
+    }
+}
+
+void clear_files() {
+    for (int i = 0; files[i] != NULL; i++) {
+        free(files[i]);
+    }
+    free(files);
+    files = calloc(1, sizeof(char *));
+    files[0] = NULL;
+    update_files_list();
+}
+
+void add_file(char *file) {
+    unsigned n = 0;
+    for (int i = 0; files[i] != NULL; i++) {
+        n++;
+    }
+    char **tmp = realloc(files, (n + 2) * sizeof(char *));
+    if (tmp == NULL) {
+        g_warning("Failed to allocate memory for files array");
+        return;
+    }
+    files = tmp;
+    files[n] = calloc(strlen(file) + 1, sizeof(char));
+    strcpy(files[n], file);
+    files[n + 1] = NULL;
+    update_files_list();
+}
+
+void finish_open_multiple_dialog(GObject* source_object, GAsyncResult* res, gpointer user_data) {
+    GListModel *selected_files = gtk_file_dialog_open_multiple_finish(GTK_FILE_DIALOG(source_object),
+                                                                      res,
+                                                                      NULL);
+    if (selected_files != NULL) {
+        unsigned selected_files_length = g_list_model_get_n_items(selected_files);
+        for (int i = 0; i < selected_files_length; i++) {
+            GFile *file = g_list_model_get_item(selected_files, i);
+            add_file(g_file_get_path(file));
+        }
+    }
+}
+
+void show_add_files_dialog() {
+    GtkFileDialog *dialog = gtk_file_dialog_new();
+
+    gtk_file_dialog_open_multiple(dialog, global_window, NULL, finish_open_multiple_dialog, NULL);
+}
+
 void begin_process() {
     if (!gtk_switch_get_active(GTK_SWITCH(compression_switch))) {
         printf("Compressing\n");
     } else {
         printf("Decompressing\n");
     }
+}
+
+void on_window_closed() {
+    for (int i = 0; files[i] != NULL; i++) {
+        free(files[i]);
+    }
+    free(files);
 }
