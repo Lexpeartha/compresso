@@ -542,18 +542,14 @@ int adaptive_huffman_decode(char * filename){
     return 0;
 }
 
-void free_tree(Node * root){
-    // do nothing
-}
-
 uint8_t how_many_useful_bits(Byte_buffer * byte_buffer){
     return (uint8_t) (7 - byte_buffer->index);
 }
 
 // adaptive_huffman_encode
-int adaptive_huffman_encode(){
-    char filename[150] = "input.txt";
-    strcpy(filename, "primer.doc");
+int adaptive_huffman_encode(char filename[150]){
+//    char filename[150] = "input.txt";
+//    strcpy(filename, "primer.doc");
     //strcpy(filename, "tmpfile-Drxw2V");
     char output_filename[150];
     long rand = random() % 100 + 1;
@@ -619,10 +615,6 @@ int adaptive_huffman_encode(){
 
     fclose(destination);
     fclose(source);
-
-
-    // DELETE LATER
-    adaptive_huffman_decode(changed_name);
 
     free(root);
     free(byte_buffer);

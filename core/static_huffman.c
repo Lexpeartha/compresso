@@ -171,11 +171,6 @@ char * stringify(const int array[], int count){
     return temp;
 }
 
-
-
-
-
-
 void push_stack(Stack * stack, StackNode temp) {
     if (stack->top < MAX_STACK_SIZE - 1) {
         stack->data[++stack->top] = temp;
@@ -362,25 +357,6 @@ void free_hash_table(output_hash * table){
 
 }
 
-void free_hash_table_hash_entry(hash_entry * table){
-
-    hash_entry *current_entry, *tmp;
-
-    // Iterate over each entry in the hash table
-    HASH_ITER(hh, table, current_entry, tmp) {
-        // Remove the current entry from the hash table
-        HASH_DEL(hash_table, current_entry);
-
-        // Free the key and value associated with the entry
-        free(current_entry);
-
-        // Note: If your value contains dynamically allocated memory,
-        // make sure to free it before freeing the hash_entry struct.
-    }
-
-}
-
-
 uint8_t navigate2(HeapNode * root, uint8_t * buffer, int buffer_len){
     HeapNode * temp2 = root;
     for(int i = 0; i < buffer_len; i++){
@@ -477,8 +453,8 @@ int static_huffman_decode(char * filename){
 }
 
 // static_huffman_encode
-int static_huffman_encode() {
-    char * filename = "astronaut.png";
+int static_huffman_encode(char * filename) {
+    //char * filename = "astronaut.png";
     //filename = "tmpfile-Drxw2V";
     //filename = "tmpfile-jJbl8hnull";
     //filename = "robinson_crusoe.txt";
@@ -568,7 +544,7 @@ int static_huffman_encode() {
     export_hash_table(hash_table, "hes_tabela");
     free_hash_table(output_hash_table);
 
-    static_huffman_decode("static_decompressed.txt");
+    //static_huffman_decode("static_decompressed.txt");
 
     //free_hash_table_hash_entry(hash_table);
 
