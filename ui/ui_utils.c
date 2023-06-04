@@ -147,9 +147,23 @@ void append_to_log_buffer(char *text) {
     gtk_text_buffer_insert_at_cursor(log_buffer, text, -1);
 }
 
+void finish_save_dialog(GObject* source_object, GAsyncResult* res, gpointer text) {
+    GFile *save_file = NULL;
+    save_file = gtk_file_dialog_save_finish(GTK_FILE_DIALOG(source_object), res, NULL);
+
+    if (save_file != NULL) {
+        char *filename = g_file_get_path(save_file);
+        FILE *file = fopen(filename, "w");
+        fprintf(file, "%s", (char *) text);
+        fclose(file);
+        g_free(filename);
+    }
+}
+
 void save_log_buffer() {
     GtkFileDialog *dialog = gtk_file_dialog_new();
-    gtk_file_dialog_set_title(dialog, "Save log to file");
+
+    gtk_file_dialog_set_initial_name(dialog, "log.txt");
 
     GtkTextIter start, end;
     gtk_text_buffer_get_start_iter(log_buffer, &start);
@@ -157,11 +171,7 @@ void save_log_buffer() {
 
     char *text = gtk_text_buffer_get_text(log_buffer, &start, &end, FALSE);
 
-    // TODO: Open path dialog instead of hardcoding
-    const char *filename = "log.txt";
-    FILE *file = fopen(filename, "w");
-    fprintf(file, "%s", text);
-    fclose(file);
+    gtk_file_dialog_save(dialog, global_window, NULL, finish_save_dialog, text);
 }
 
 void show_about_dialog() {
