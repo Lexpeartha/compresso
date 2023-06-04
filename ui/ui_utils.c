@@ -175,14 +175,17 @@ void save_log_buffer() {
 }
 
 void show_about_dialog() {
-    gtk_show_about_dialog(global_window,
-                          "program-name", "Compresso",
-                          "title", "About Compresso",
-                          "comments", "Compresso is a compression tool written in C. "
-                                      "It is a university project at Faculty Of Electrical Engineering for a course "
-                                      "called Practicum in Programming 2, which covers practical usages of C programming language.",
-                          "website", "https://github.com/Lexpeartha/compresso",
-                          NULL);
+    GtkWidget *dialog = gtk_about_dialog_new();
+
+    gtk_about_dialog_set_program_name(GTK_ABOUT_DIALOG(dialog), "Compresso");
+    gtk_about_dialog_set_comments(GTK_ABOUT_DIALOG(dialog), "Compresso is a compression tool written in C. "
+                                                            "It is a university project at Faculty Of Electrical Engineering for a course "
+                                                            "called Practicum in Programming 2, which covers practical usages of C programming language.");
+    gtk_about_dialog_set_website(GTK_ABOUT_DIALOG(dialog), "https://github.com/Lexpeartha/compresso");
+    gtk_about_dialog_set_license(GTK_ABOUT_DIALOG(dialog), "MIT License");
+
+    gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(global_window));
+    gtk_widget_show(dialog);
 }
 
 void begin_process() {
