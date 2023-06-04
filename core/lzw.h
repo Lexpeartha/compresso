@@ -43,6 +43,6 @@ int return_prefix(dictionary *dict, int code);
 int return_new_char(dictionary *dict, int code);
 array* print_string(dictionary *dict, int code);
 int return_first(dictionary *dict, int code);
-char* compress_lzw(char* input_file_name);
+char* compress_lzw(char* input_file_name, char* output_file_name);
 void decompress_lzw(char* input_file_name, char *output_file_name);
 #endif //COMPRESSO_LZW_H
