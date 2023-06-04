@@ -1,8 +1,9 @@
 #include "ui_utils.h"
 
 // Variables I need to access from multiple places
-GtkTextBuffer* log_buffer = NULL;
-GtkWindow* global_window = NULL;
+GtkTextBuffer *log_buffer = NULL;
+GtkWindow *global_window = NULL;
+GtkWidget *compression_switch = NULL;
 
 int setup_ui(GtkWidget *window) {
     // Initiates GridLayout
@@ -73,6 +74,7 @@ int initiate_log_container(GtkWidget *grid) {
     g_signal_connect(log_save_button, "clicked", G_CALLBACK(save_log_buffer), NULL);
     gtk_box_append(GTK_BOX(log_buttons_container), log_clear_button);
     gtk_box_append(GTK_BOX(log_buttons_container), log_save_button);
+    gtk_widget_set_margin_end(log_buttons_container, INNER_PADDING);
 
     GtkWidget *wrapper = gtk_box_new(GTK_ORIENTATION_VERTICAL, INNER_PADDING);
     GtkWidget *log_view_scrollable_container = gtk_scrolled_window_new();
@@ -84,7 +86,7 @@ int initiate_log_container(GtkWidget *grid) {
     for (int i = 0; i < 50; i++) {
         char buffer[1024];
         sprintf(buffer, "Log number %d\n", i);
-        gtk_text_buffer_insert_at_cursor(log_buffer, buffer, -1);
+        append_to_log_buffer(buffer);
     }
 
     gtk_grid_attach(GTK_GRID(grid), log_frame, position.column, position.row, position.width, position.height);
@@ -107,6 +109,33 @@ int initiate_controls_container(GtkWidget *grid) {
 
     gtk_grid_attach(GTK_GRID(grid), controls_frame, position.column, position.row, position.width, position.height);
 
+    GtkWidget *switch_label = gtk_label_new("Compress/Decompress:");
+    compression_switch = gtk_switch_new();
+    GtkWidget *switch_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, INNER_PADDING);
+    gtk_box_append(GTK_BOX(switch_box), switch_label);
+    gtk_box_append(GTK_BOX(switch_box), compression_switch);
+
+    GtkWidget *wrapper = gtk_box_new(GTK_ORIENTATION_VERTICAL, INNER_PADDING);
+    gtk_box_append(GTK_BOX(wrapper), switch_box);
+    gtk_widget_set_margin_top(wrapper, INNER_PADDING);
+    gtk_widget_set_margin_bottom(wrapper, INNER_PADDING);
+    gtk_widget_set_margin_start(wrapper, INNER_PADDING);
+    gtk_widget_set_margin_end(wrapper, INNER_PADDING);
+
+    GtkWidget *about_button = gtk_button_new_with_label("About");
+    g_signal_connect(about_button, "clicked", G_CALLBACK(show_about_dialog), NULL);
+    GtkWidget *begin_button = gtk_button_new_with_label("Begin");
+    g_signal_connect(begin_button, "clicked", G_CALLBACK(begin_process), NULL);
+
+    GtkWidget *control_buttons_container = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, INNER_PADDING);
+    gtk_box_append(GTK_BOX(control_buttons_container), about_button);
+    gtk_box_append(GTK_BOX(control_buttons_container), begin_button);
+    gtk_widget_set_halign(control_buttons_container, GTK_ALIGN_END);
+
+    gtk_box_append(GTK_BOX(wrapper), control_buttons_container);
+
+    gtk_frame_set_child(GTK_FRAME(controls_frame), wrapper);
+
     return 0;
 }
 
@@ -119,7 +148,7 @@ void append_to_log_buffer(char *text) {
 }
 
 void save_log_buffer() {
-    GtkFileDialog* dialog = gtk_file_dialog_new();
+    GtkFileDialog *dialog = gtk_file_dialog_new();
     gtk_file_dialog_set_title(dialog, "Save log to file");
 
     GtkTextIter start, end;
@@ -128,7 +157,28 @@ void save_log_buffer() {
 
     char *text = gtk_text_buffer_get_text(log_buffer, &start, &end, FALSE);
 
+    // TODO: Open path dialog instead of hardcoding
+    const char *filename = "log.txt";
     FILE *file = fopen(filename, "w");
     fprintf(file, "%s", text);
     fclose(file);
+}
+
+void show_about_dialog() {
+    gtk_show_about_dialog(global_window,
+                          "program-name", "Compresso",
+                          "title", "About Compresso",
+                          "comments", "Compresso is a compression tool written in C. "
+                                      "It is a university project at Faculty Of Electrical Engineering for a course "
+                                      "called Practicum in Programming 2, which covers practical usages of C programming language.",
+                          "website", "https://github.com/Lexpeartha/compresso",
+                          NULL);
+}
+
+void begin_process() {
+    if (!gtk_switch_get_active(GTK_SWITCH(compression_switch))) {
+        printf("Compressing\n");
+    } else {
+        printf("Decompressing\n");
+    }
 }

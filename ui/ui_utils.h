@@ -21,6 +21,8 @@ int initiate_controls_container(GtkWidget *grid);
 void clear_log_buffer();
 void append_to_log_buffer(char *text);
 void save_log_buffer();
+void show_about_dialog();
+void begin_process();
 
 typedef struct grid_position_t {
     int column;
