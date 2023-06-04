@@ -1,14 +1,18 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "cli_utils.h"
 
 int cli_main(int argc, char *argv[]) {
     // If not specified, by default the program will compress the file
-    command_code command;
-    int explicitly_specified_command = 0;
+    // TODO: Update based on configuration
+    command_code command = UNKNOWN;
     // Flag vector to store all flags used in the command
     unsigned int flags_num = 0;
     flag* flags = calloc(0, sizeof(flag));
     if (flags == NULL) {
-        printf("Failed to allocate memory for flags\n");
+        printf("MEMORY ALLOCATION FAILED\n");
         exit(1);
     }
     // Whitelist of possible non-commands on which we don't want program to break
@@ -19,21 +23,8 @@ int cli_main(int argc, char *argv[]) {
     int error_while_reading = read_config_file(config_path, config);
 
     if (error_while_reading) {
-        printf("Failed to read config file\n");
-        exit(1);
-    }
-
-    // Update default default command code
-    switch (get_program_mode(config->program_mode)) {
-        case 1:
-            command = COMPRESS;
-            break;
-        case 0:
-            command = DECOMPRESS;
-            break;
-        default:
-            command = UNKNOWN;
-            break;
+        printf("FAILED TO READ CONFIG FILE\n");
+        exit(4);
     }
 
     /* IMPORTANT FLAGS THAT SKIP REGULAR EXECUTION */
@@ -70,35 +61,32 @@ int cli_main(int argc, char *argv[]) {
     }
     /* REGULAR COMMANDS AND FLAGS */
     char* target_file = argv[1];
-    // TODO: Check if the target file starts with a dash
     for (int i = 2; i < argc; i++) {
         char *current_arg = argv[i];
         if (command_check(current_arg, "--compress", 1, (char*[]){"-c"})) {
-            if (command == DECOMPRESS && explicitly_specified_command) {
-                printf("Cannot use both --compress and --decompress flags\n");
-                exit(1);
+            if (command == DECOMPRESS) {
+                printf("FALSE USAGE: Cannot use both --compress and --decompress flags\n");
+                exit(5);
             }
-            explicitly_specified_command = 1;
             command = COMPRESS;
         }
         else if (command_check(current_arg, "--decompress", 1, (char*[]){"-d"})) {
-            if (command == COMPRESS && explicitly_specified_command) {
-                printf("Cannot use both --compress and --decompress flags\n");
-                exit(1);
+            if (command == COMPRESS) {
+                printf("FALSE USAGE: Cannot use both --compress and --decompress flags\n");
+                exit(5);
             }
-            explicitly_specified_command = 1;
             command = DECOMPRESS;
         }
         else if (command_check(current_arg, "--output", 1, (char*[]){"-o"})) {
             flag* tmp = realloc(flags, (flags_num + 1) * sizeof(flag));
             if (tmp == NULL) {
-                printf("Failed to allocate memory for flags\n");
+                printf("MEMORY ALLOCATION FAILED\n");
                 exit(1);
             }
             flags = tmp;
             flags[flags_num].code = OUTPUT;
             if (i + 1 > argc || verify_argument(argv[i + 1], "-")) {
-                // Place for argument is not found, or it is a flag, so we use default config
+                // Place for argument is not found or it is a flag, so we use default config
                 flags[flags_num].parameter = config->output_path;
             } else {
                 // If argument is found, we use that
@@ -110,13 +98,13 @@ int cli_main(int argc, char *argv[]) {
         else if (command_check(current_arg, "--log", 1, (char*[]){"-l"})) {
             flag* tmp = realloc(flags, (flags_num + 1) * sizeof(flag));
             if (tmp == NULL) {
-                printf("Failed to allocate memory for flags\n");
+                printf("MEMORY ALLOCATION FAILED\n");
                 exit(1);
             }
             flags = tmp;
             flags[flags_num].code = LOG;
             if (i + 1 > argc || verify_argument(argv[i + 1], "-")) {
-                // Place for argument is not found, or it is a flag, so we use default config
+                // Place for argument is not found or it is a flag, so we use default config
                 flags[flags_num].parameter = config->log_path;
             } else {
                 // If argument is found, we use that
@@ -136,8 +124,8 @@ int cli_main(int argc, char *argv[]) {
                 }
             }
             if (!is_exception) {
-                printf("Invalid command, flag or symbol: %s\n", current_arg);
-                exit(1);
+                printf("FALSE USAGE: Invalid command detected:%s\n", current_arg);
+                exit(5);
             }
         }
     }

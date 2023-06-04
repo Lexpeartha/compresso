@@ -1,7 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #ifndef COMPRESSO_CLI_UTILS_H
 #define COMPRESSO_CLI_UTILS_H
 
@@ -77,9 +73,6 @@ int compress(char* target_file, flag* flags, unsigned int flags_num);
 
 /// @brief Function that decompresses a file based on the flags passed
 int decompress(char* target_file, flag* flags, unsigned int flags_num);
-
-/// @brief Function that takes a string, and returns 1 if it is "compress", 0 if it is "decompress", -1 otherwise
-int get_program_mode(const char* program_mode);
 
 /// @brief Function that verifies if an argument satisfies a condition
 int verify_argument(const char* arg, const char* starts_with);
