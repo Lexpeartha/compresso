@@ -185,7 +185,7 @@ void show_about_dialog() {
     gtk_about_dialog_set_license(GTK_ABOUT_DIALOG(dialog), "MIT License");
 
     gtk_window_set_transient_for(GTK_WINDOW(dialog), GTK_WINDOW(global_window));
-    gtk_widget_show(dialog);
+    gtk_widget_set_visible(dialog, TRUE);
 }
 
 void begin_process() {
