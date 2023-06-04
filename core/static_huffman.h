@@ -49,6 +49,7 @@ typedef struct {
     int top;
 } Stack;
 
+
 int heap_left_child(int index);
 int heap_right_child(int index);
 void swap_heap_nodes(Heap * heap, int ind1, int ind2);

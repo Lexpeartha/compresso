@@ -546,6 +546,7 @@ uint8_t how_many_useful_bits(Byte_buffer * byte_buffer){
     return (uint8_t) (7 - byte_buffer->index);
 }
 
+
 // adaptive_huffman_encode
 int adaptive_huffman_encode(char filename[150]){
 //    char filename[150] = "input.txt";

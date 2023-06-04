@@ -452,6 +452,7 @@ int static_huffman_decode(char * filename){
     return 0;
 }
 
+
 // static_huffman_encode
 int static_huffman_encode(char * filename) {
     //char * filename = "astronaut.png";
