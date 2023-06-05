@@ -6,7 +6,6 @@
 #include "cli_utils.h"
 #include "../core/log.h"
 #include "../core/lzw.h"
-#include "../core/file_utils.h"
 
 int command_check(char* input, char* cmd_name, int cmd_aliases_len, char* cmd_aliases[cmd_aliases_len]) {
     if (strcmp(input, cmd_name) == 0) {
@@ -56,7 +55,7 @@ void free_file_configuration_struct(file_configuration* config) {
 }
 
 int read_config_file(const char* filename, file_configuration* config) {
-    printf("Reading config file %s\n", filename);
+    // printf("Reading config file %s\n", filename);
     if(config == NULL)
         return 1;
 
@@ -80,8 +79,6 @@ int read_config_file(const char* filename, file_configuration* config) {
         if (sscanf(line, "%31s \"%127[^\"]\"", key, value) == 2) {
             if (strcmp(key, "program_mode") == 0) {
                 strcpy(config->program_mode, value);
-            } else if (strcmp(key, "algorithm") == 0) {
-                strcpy(config->algorithm, value);
             } else if (strcmp(key, "log_path") == 0) {
                 strcpy(config->log_path, value);
             } else if (strcmp(key, "output_path") == 0) {
@@ -90,15 +87,14 @@ int read_config_file(const char* filename, file_configuration* config) {
         }
     }
 
+    config->algorithm = NULL;
     fclose(fp);
 
     return 0;
 }
 
 int update_config_file(const char* filename, file_configuration* config) {
-    printf("Updating config file %s\n", filename);
-    // TODO: remove this
-    return 0;
+    // printf("Updating config file %s\n", filename);
 
     char full_path[MAX_LINE_LENGTH/4];
     sprintf(full_path, "../%s", filename);
@@ -109,7 +105,6 @@ int update_config_file(const char* filename, file_configuration* config) {
     }
 
     fprintf(fp, "program_mode \"%s\"\n", config->program_mode);
-    fprintf(fp, "algorithm \"%s\"\n", config->algorithm);
     fprintf(fp, "log_path \"%s\"\n", config->log_path);
     fprintf(fp, "output_path \"%s\"\n", config->output_path);
 
@@ -118,9 +113,8 @@ int update_config_file(const char* filename, file_configuration* config) {
     return 0;
 }
 
-int compress(char* target_file, flag* flags, unsigned int flags_num) {
-    char *output_path = NULL;
-    char *log_path = NULL;
+int compress(char* target_file, flag* flags, unsigned int flags_num, file_configuration* config) {
+    char *output_path = NULL, *log_path = NULL;
     for (int i = 0; i < flags_num; i++) {
         if (flags[i].code == OUTPUT) {
             output_path = flags[i].parameter;
@@ -130,14 +124,16 @@ int compress(char* target_file, flag* flags, unsigned int flags_num) {
     }
 
     if (output_path == NULL) {
-        // TODO: load default from configuration
-        output_path = "compressed";
+        output_path = config->output_path;
     }
     if (log_path == NULL) {
-        log_path = "log.txt";
+        log_path = config->log_path;
     }
 
     FILE *log_file = fopen(log_path, "w");
+    if (log_file == NULL) {
+        return 1;
+    }
 
     // Start counting time
     clock_t start, end;
@@ -173,9 +169,26 @@ int compress(char* target_file, flag* flags, unsigned int flags_num) {
     return 0;
 }
 
-int decompress(char* target_file, flag* flags, unsigned int flags_num) {
+int compress_without_log(char* target_file, flag* flags, unsigned int flags_num, file_configuration* config) {
     char *output_path = NULL;
-    char *log_path = NULL;
+    for (int i = 0; i < flags_num; i++) {
+        if (flags[i].code == OUTPUT) {
+            output_path = flags[i].parameter;
+        }
+    }
+
+    if (output_path == NULL) {
+        output_path = config->output_path;
+    }
+
+    // Compress file
+    compress_lzw(target_file, output_path);
+
+    return 0;
+}
+
+int decompress(char* target_file, flag* flags, unsigned int flags_num, file_configuration* config) {
+    char *output_path = NULL, *log_path = NULL;
     for (int i = 0; i < flags_num; i++) {
         if (flags[i].code == OUTPUT) {
             output_path = flags[i].parameter;
@@ -185,14 +198,16 @@ int decompress(char* target_file, flag* flags, unsigned int flags_num) {
     }
 
     if (output_path == NULL) {
-        // TODO: load default from configuration
-        output_path = "compressed";
+        output_path = config->output_path;
     }
     if (log_path == NULL) {
-        log_path = "log.txt";
+        log_path = config->log_path;
     }
 
     FILE *log_file = fopen(log_path, "w");
+    if (log_file == NULL) {
+        return 1;
+    }
 
     // Start counting time
     clock_t start, end;
@@ -224,6 +239,24 @@ int decompress(char* target_file, flag* flags, unsigned int flags_num) {
     free(log_line);
 
     fclose(log_file);
+
+    return 0;
+}
+
+int decompress_without_log(char* target_file, flag* flags, unsigned int flags_num, file_configuration* config) {
+    char *output_path = NULL;
+    for (int i = 0; i < flags_num; i++) {
+        if (flags[i].code == OUTPUT) {
+            output_path = flags[i].parameter;
+        }
+    }
+
+    if (output_path == NULL) {
+        output_path = config->output_path;
+    }
+
+    // Decompress file
+    decompress_lzw(target_file, output_path);
 
     return 0;
 }
