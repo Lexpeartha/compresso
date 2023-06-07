@@ -542,9 +542,9 @@ int adaptive_huffman_decode(char * filename){
     return 0;
 }
 
-void free_tree(Node * root){
-    // do nothing
-}
+//void free_tree(Node * root){
+//    // do nothing
+//}
 
 uint8_t how_many_useful_bits(Byte_buffer * byte_buffer){
     return (uint8_t) (7 - byte_buffer->index);

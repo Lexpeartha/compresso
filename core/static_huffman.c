@@ -1,6 +1,6 @@
 #include "static_huffman.h"
 #define OUTPUT "static_output"
-#define INTERNAL_NODE 0
+#define INTERNAL_NODE 888
 #define MAX 10000
 
 hash_entry * hash_table = NULL;
@@ -51,19 +51,20 @@ void insert_value(Heap * heap, HeapNode * new){
 
 Heap * form_min_heap(hash_entry * table) {
     // initializing the heap
-    Heap * heap = malloc(sizeof(Heap));
-    heap->nodes = malloc(HASH_COUNT(table) * sizeof(HeapNode *));
+    Heap * heap = calloc(1, sizeof(Heap));
+    heap->nodes = calloc(HASH_COUNT(table), sizeof(HeapNode *));
     heap->len = 0;
 
     hash_entry * s;
     for (s = table; s != NULL; s = s->hh.next) {
-        HeapNode * new = malloc(sizeof(HeapNode));
+        HeapNode * new = calloc(1, sizeof(HeapNode));
         if(new == NULL){
             printf("\nMemory allocation failed! ");
             exit(3);
         }
         new->frequency = s->frequency;
         new->data = s->symbol;
+        new->flag = 0;
         insert_value(heap, new);
     }
     if(heap == NULL){
@@ -71,6 +72,14 @@ Heap * form_min_heap(hash_entry * table) {
         exit(4);
     }
     return heap;
+}
+
+void free_heap(Heap * heap){
+    for(int i = 0; i < heap->len; i++){
+        free(heap->nodes[i]);
+    }
+    free(heap->nodes);
+    free(heap);
 }
 
 int node_is_leaf(HeapNode * node){
@@ -117,10 +126,11 @@ HeapNode * form_huffman_tree(Heap * heap){
         HeapNode * left = extract_min(heap);
         HeapNode * right = extract_min(heap);
 
-        HeapNode * internal_node = malloc(sizeof(HeapNode));
+        HeapNode * internal_node = calloc(1, sizeof(HeapNode));
         internal_node->left_child = (struct HeapNode *) left;
         internal_node->right_child = (struct HeapNode *) right;
-        internal_node->data = INTERNAL_NODE; // default value indicating this is an INTERNAL NODE
+        internal_node->data = 0; // default value indicating this is an INTERNAL NODE
+        internal_node->flag = INTERNAL_NODE; // default value indicating this is an INTERNAL NODE
         internal_node->frequency = left->frequency + right->frequency;
 
         // the newly formed internal node is returned to the heap
@@ -129,6 +139,18 @@ HeapNode * form_huffman_tree(Heap * heap){
 
     return extract_min(heap);
 }
+
+void free_tree(HeapNode * root) {
+    if (root == NULL) {
+        return;
+    }
+
+    free_tree((HeapNode *) root->left_child);
+    free_tree((HeapNode *) root->right_child);
+
+    free(root);
+}
+
 
 void print_byte_buffer2(Byte_buffer * byte_buffer){
     // print the contents of the byte_buffer
@@ -162,7 +184,7 @@ void fill_byte_buffer2(Byte_buffer * byte_buffer, const char * string){
 }
 
 char * stringify(const int array[], int count){
-    char * temp = malloc((count + 1) * sizeof(char));
+    char * temp = calloc((count + 1), sizeof(char));
     for(int i = 0; i < count; i++){
         if(array[i] == 0) temp[i] = '0';
         else temp[i] = '1';
@@ -170,11 +192,6 @@ char * stringify(const int array[], int count){
     temp[count] = 0;
     return temp;
 }
-
-
-
-
-
 
 void push_stack(Stack * stack, StackNode temp) {
     if (stack->top < MAX_STACK_SIZE - 1) {
@@ -202,7 +219,7 @@ StackNode makeStackNode(HeapNode* n, int c, int cd[]) {
 }
 
 void get_huffman_codes(HeapNode* node, int counter, int code[]) {
-    Stack * stack = malloc(sizeof(Stack));
+    Stack * stack = calloc(1, sizeof(Stack));
     stack->top = -1;
     push_stack(stack, makeStackNode(node, counter, code));
 
@@ -222,13 +239,15 @@ void get_huffman_codes(HeapNode* node, int counter, int code[]) {
         }
         if (node_is_leaf(node)) {
             // Making of dictionary
-            char* temp = stringify(code, counter);
+            char * temp = stringify(code, counter);
             add_output_hash_char(node->data, temp, &output_hash_table);
+            free(temp);
 
             printf("\nHuffman code for %c is: ", node->data);
             for (int i = 0; i < counter; i++) {
                 printf("%d", code[i]);
             }
+
         }
     }
 
@@ -245,7 +264,7 @@ void delete_file2(char * filename){
 void add_char(uint8_t symbol, hash_entry ** table) {
     hash_entry * s;
 
-    s = malloc(sizeof *s);
+    s = calloc(1, sizeof *s);
     s->symbol = symbol;
     s->frequency = 1;
 
@@ -265,10 +284,10 @@ char how_many_useful_bits2(Byte_buffer * byte_buffer){
 void add_output_hash_char(uint8_t symbol, char * string, output_hash ** table){
     output_hash * s;
 
-    s = malloc(sizeof *s);
+    s = calloc(1, sizeof *s);
     s->symbol = symbol;
-    s->huffman = malloc((strlen(string) + 1) * sizeof(char));
-    s->huffman = string;
+    s->huffman = calloc((strlen(string) + 1), sizeof(char));
+    strcpy(s->huffman, string);
 
     HASH_ADD(hh, *table, symbol, sizeof(uint8_t), s);
 }
@@ -320,7 +339,7 @@ hash_entry * import_hash_table(const char* filename) {
 
         if(x == 0) break;
 
-        hash_entry * entry = (hash_entry*)malloc(sizeof(hash_entry));
+        hash_entry * entry = (hash_entry*)calloc(1, sizeof(hash_entry));
         if (entry == NULL) {
             printf("Memory allocation error\n");
             fclose(file);
@@ -350,7 +369,7 @@ void free_hash_table(output_hash * table){
     // Iterate over each entry in the hash table
     HASH_ITER(hh, table, current_entry, tmp) {
         // Remove the current entry from the hash table
-        HASH_DEL(hash_table, current_entry);
+        HASH_DEL(table, current_entry);
 
         // Free the key and value associated with the entry
         free(current_entry->huffman);
@@ -369,7 +388,7 @@ void free_hash_table_hash_entry(hash_entry * table){
     // Iterate over each entry in the hash table
     HASH_ITER(hh, table, current_entry, tmp) {
         // Remove the current entry from the hash table
-        HASH_DEL(hash_table, current_entry);
+        HASH_DEL(table, current_entry);
 
         // Free the key and value associated with the entry
         free(current_entry);
@@ -381,13 +400,14 @@ void free_hash_table_hash_entry(hash_entry * table){
 }
 
 
-uint8_t navigate2(HeapNode * root, uint8_t * buffer, int buffer_len){
+HeapNode * navigate2(HeapNode * root, const uint8_t * buffer, int buffer_len){
     HeapNode * temp2 = root;
     for(int i = 0; i < buffer_len; i++){
         if(buffer[i] == '0') temp2 = (HeapNode *) temp2->left_child;
         else if(buffer[i] == '1') temp2 = (HeapNode *) temp2->right_child;
     }
-    return temp2->data;
+
+    return temp2;
 }
 
 
@@ -456,33 +476,60 @@ int static_huffman_decode(char * filename){
             }
         }
 
-
         while(1){
             temp_new[temp_new_len++] = buffer[0];
             remove_first_element2(buffer, &buffer_len);
-            uint8_t navigate_result = navigate2(decompression_root, temp_new, temp_new_len);
+            HeapNode * navigate_result = navigate2(decompression_root, temp_new, temp_new_len);
 
-            if(navigate_result != INTERNAL_NODE){
+
+            if(navigate_result->left_child == NULL && navigate_result->right_child == NULL){
                 // write symbol
-                fwrite(&navigate_result, sizeof(uint8_t), 1, out);
+                fwrite(&navigate_result->data, sizeof(uint8_t), 1, out);
                 temp_new_len = 0;
             }
 
-            if(buffer_len == 0) break;
+            if(buffer_len <= 0) break;
         }
     }
 
+    free_tree(decompression_root);
+    free_hash_table_hash_entry(novi);
+    free_heap(min_heap);
+
+    fclose(in);
+    fclose(out);
 
     return 0;
 }
 
+
+void print_huffman_tree(HeapNode* root, int depth) {
+    if (root == NULL) {
+        return;
+    }
+
+    // Print the current node
+    for (int i = 0; i < depth; i++) {
+        printf("    ");
+    }
+
+    if (root->flag != 0) {
+        printf("Leaf Node: '%c' (Frequency: %ld)\n", root->data, root->frequency);
+    } else {
+        printf("Internal Node '%c' (Frequency: %ld)\n", root->data, root->frequency);
+    }
+
+    print_huffman_tree(root->left_child, depth + 1);
+    print_huffman_tree(root->right_child, depth + 1);
+}
+
+
 // static_huffman_encode
-int static_huffman_encode() {
-    char * filename = "astronaut.png";
-    //filename = "tmpfile-Drxw2V";
+int static_huffman_encode(char * filename) {
+    //char * filename = "input.txt";
+    //filename = "robinson_crusoe.txt";
     //filename = "tmpfile-jJbl8hnull";
     //filename = "robinson_crusoe.txt";
-    // determining the extension of the file
 
 
     FILE * in;
@@ -535,7 +582,7 @@ int static_huffman_encode() {
         exit(1);
     }
 
-    Byte_buffer * byte_buffer = malloc(sizeof(Byte_buffer));
+    Byte_buffer * byte_buffer = calloc(1, sizeof(Byte_buffer));
     byte_buffer->byte = 0;
     byte_buffer->index = 7;
 
@@ -566,11 +613,18 @@ int static_huffman_encode() {
     fclose(out);
 
     export_hash_table(hash_table, "hes_tabela");
+
+    printf("\n\n\n");
+    //print_huffman_tree(static_huffman_root, 0);
+
     free_hash_table(output_hash_table);
+    free(byte_buffer);
+    free_tree(static_huffman_root);
+    free_hash_table_hash_entry(hash_table);
+    free_heap(min_heap);
 
-    static_huffman_decode("static_decompressed.txt");
+    static_huffman_decode("static_decompressed");
 
-    //free_hash_table_hash_entry(hash_table);
 
     return 0;
 }
