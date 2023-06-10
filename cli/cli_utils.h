@@ -69,10 +69,13 @@ int read_config_file(const char* filename, file_configuration* config);
 int update_config_file(const char* filename, file_configuration* config);
 
 /// @brief Function that compresses a file based on the flags passed
-int compress(char* target_file, flag* flags, unsigned int flags_num);
+int compress(char* target_file, flag* flags, unsigned int flags_num, file_configuration* config);
+int compress_without_log(char* target_file, flag* flags, unsigned int flags_num, file_configuration* config);
+
 
 /// @brief Function that decompresses a file based on the flags passed
-int decompress(char* target_file, flag* flags, unsigned int flags_num);
+int decompress(char* target_file, flag* flags, unsigned int flags_num, file_configuration* config);
+int decompress_without_log(char* target_file, flag* flags, unsigned int flags_num, file_configuration* config);
 
 /// @brief Function that verifies if an argument satisfies a condition
 int verify_argument(const char* arg, const char* starts_with);

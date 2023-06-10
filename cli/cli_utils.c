@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "cli_utils.h"
-#include "../core/file_utils.h"
+#include "../core/log.h"
+#include "../core/lzw.h"
 
 int command_check(char* input, char* cmd_name, int cmd_aliases_len, char* cmd_aliases[cmd_aliases_len]) {
     if (strcmp(input, cmd_name) == 0) {
@@ -53,18 +55,14 @@ void free_file_configuration_struct(file_configuration* config) {
 }
 
 int read_config_file(const char* filename, file_configuration* config) {
-    printf("Reading config file %s\n", filename);
-
-    if (config == NULL) {
-        fprintf(stderr, "Error: config is NULL\n");
+    // printf("Reading config file %s\n", filename);
+    if(config == NULL)
         return 1;
-    }
 
     char full_path[MAX_LINE_LENGTH/4];
     sprintf(full_path, "../%s", filename);
     FILE* fp = fopen(full_path, "r");
     if (fp == NULL) {
-        fprintf(stderr, "Error: could not open file %s\n", filename);
         return 1;
     }
 
@@ -81,8 +79,6 @@ int read_config_file(const char* filename, file_configuration* config) {
         if (sscanf(line, "%31s \"%127[^\"]\"", key, value) == 2) {
             if (strcmp(key, "program_mode") == 0) {
                 strcpy(config->program_mode, value);
-            } else if (strcmp(key, "algorithm") == 0) {
-                strcpy(config->algorithm, value);
             } else if (strcmp(key, "log_path") == 0) {
                 strcpy(config->log_path, value);
             } else if (strcmp(key, "output_path") == 0) {
@@ -91,25 +87,24 @@ int read_config_file(const char* filename, file_configuration* config) {
         }
     }
 
+    config->algorithm = NULL;
     fclose(fp);
 
     return 0;
 }
 
 int update_config_file(const char* filename, file_configuration* config) {
-    printf("Updating config file %s\n", filename);
+    // printf("Updating config file %s\n", filename);
 
     char full_path[MAX_LINE_LENGTH/4];
     sprintf(full_path, "../%s", filename);
 
     FILE* fp = fopen(full_path, "w");
     if (fp == NULL) {
-        fprintf(stderr, "Error: could not open file %s\n", filename);
         return 1;
     }
 
     fprintf(fp, "program_mode \"%s\"\n", config->program_mode);
-    fprintf(fp, "algorithm \"%s\"\n", config->algorithm);
     fprintf(fp, "log_path \"%s\"\n", config->log_path);
     fprintf(fp, "output_path \"%s\"\n", config->output_path);
 
@@ -118,19 +113,151 @@ int update_config_file(const char* filename, file_configuration* config) {
     return 0;
 }
 
-int compress(char* target_file, flag* flags, unsigned int flags_num) {
-    printf("Compressing file %s\n", target_file);
+int compress(char* target_file, flag* flags, unsigned int flags_num, file_configuration* config) {
+    char *output_path = NULL, *log_path = NULL;
     for (int i = 0; i < flags_num; i++) {
-        printf("Flag %d: %d, %s\n", i, flags[i].code, flags[i].parameter);
+        if (flags[i].code == OUTPUT) {
+            output_path = flags[i].parameter;
+        } else if (flags[i].code == LOG) {
+            log_path = flags[i].parameter;
+        }
     }
+
+    if (output_path == NULL) {
+        output_path = config->output_path;
+    }
+    if (log_path == NULL) {
+        log_path = config->log_path;
+    }
+
+    FILE *log_file = fopen(log_path, "w");
+    if (log_file == NULL) {
+        return 1;
+    }
+
+    // Start counting time
+    clock_t start, end;
+    char *current_time, *log_line;
+
+    start = clock();
+    current_time = get_current_timestamp();
+    log_line = get_log_line(current_time, "LZW compression","Started lzw");
+    fprintf(log_file, "%s", log_line);
+    free(current_time);
+    free(log_line);
+
+    compress_lzw(target_file, output_path);
+    end = clock();
+    current_time = get_current_timestamp();
+    log_line = get_log_line(current_time, "LZW compression", "Finished lzw");
+    fprintf(log_file, "%s", log_line);;
+    free(current_time);
+    free(log_line);
+
+    // Calculate time elapsed
+    double time_taken = ((double)end - (double)start) / CLOCKS_PER_SEC;
+    char time_taken_str[128];
+    sprintf(time_taken_str, "LZW finished in %f seconds", time_taken);
+    current_time = get_current_timestamp();
+    log_line = get_log_line(current_time, "LZW Finished", time_taken_str);
+    fprintf(log_file, "%s", log_line);
+    free(current_time);
+    free(log_line);
+
+    fclose(log_file);
+
     return 0;
 }
 
-int decompress(char* target_file, flag* flags, unsigned int flags_num) {
-    printf("Decompressing file %s\n", target_file);
+int compress_without_log(char* target_file, flag* flags, unsigned int flags_num, file_configuration* config) {
+    char *output_path = NULL;
     for (int i = 0; i < flags_num; i++) {
-        printf("Flag %d: %d, %s\n", i, flags[i].code, flags[i].parameter);
+        if (flags[i].code == OUTPUT) {
+            output_path = flags[i].parameter;
+        }
     }
+
+    if (output_path == NULL) {
+        output_path = config->output_path;
+    }
+
+    // Compress file
+    compress_lzw(target_file, output_path);
+
+    return 0;
+}
+
+int decompress(char* target_file, flag* flags, unsigned int flags_num, file_configuration* config) {
+    char *output_path = NULL, *log_path = NULL;
+    for (int i = 0; i < flags_num; i++) {
+        if (flags[i].code == OUTPUT) {
+            output_path = flags[i].parameter;
+        } else if (flags[i].code == LOG) {
+            log_path = flags[i].parameter;
+        }
+    }
+
+    if (output_path == NULL) {
+        output_path = config->output_path;
+    }
+    if (log_path == NULL) {
+        log_path = config->log_path;
+    }
+
+    FILE *log_file = fopen(log_path, "w");
+    if (log_file == NULL) {
+        return 1;
+    }
+
+    // Start counting time
+    clock_t start, end;
+    char *current_time, *log_line;
+
+    start = clock();
+    current_time = get_current_timestamp();
+    log_line = get_log_line(current_time, "LZW decompression","Started lzw");
+    fprintf(log_file, "%s", log_line);
+    free(current_time);
+    free(log_line);
+
+    decompress_lzw(target_file, output_path);
+    end = clock();
+    current_time = get_current_timestamp();
+    log_line = get_log_line(current_time, "LZW decompression", "Finished lzw");
+    fprintf(log_file, "%s", log_line);;
+    free(current_time);
+    free(log_line);
+
+    // Calculate time elapsed
+    double time_taken = ((double)end - (double)start) / CLOCKS_PER_SEC;
+    char time_taken_str[128];
+    sprintf(time_taken_str, "LZW finished in %f seconds", time_taken);
+    current_time = get_current_timestamp();
+    log_line = get_log_line(current_time, "LZW Finished", time_taken_str);
+    fprintf(log_file, "%s", log_line);
+    free(current_time);
+    free(log_line);
+
+    fclose(log_file);
+
+    return 0;
+}
+
+int decompress_without_log(char* target_file, flag* flags, unsigned int flags_num, file_configuration* config) {
+    char *output_path = NULL;
+    for (int i = 0; i < flags_num; i++) {
+        if (flags[i].code == OUTPUT) {
+            output_path = flags[i].parameter;
+        }
+    }
+
+    if (output_path == NULL) {
+        output_path = config->output_path;
+    }
+
+    // Decompress file
+    decompress_lzw(target_file, output_path);
+
     return 0;
 }
 

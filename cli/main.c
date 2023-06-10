@@ -5,26 +5,28 @@
 #include "cli_utils.h"
 
 int cli_main(int argc, char *argv[]) {
-    // If not specified, by default the program will compress the file
-    command_code command = UNKNOWN;
-    // Flag vector to store all flags used in the command
-    unsigned int flags_num = 0;
-    flag* flags = calloc(0, sizeof(flag));
-    if (flags == NULL) {
-        printf("Failed to allocate memory for flags\n");
-        exit(1);
-    }
-    // Whitelist of possible non-commands on which we don't want program to break
-    char* cmd_exceptions[] = {"-DUSE_CLI", "-DUSE_UI"};
     // Default file config path
     const char* config_path = "compresso.cfg";
     file_configuration* config = init_file_configuration_struct();
     int error_while_reading = read_config_file(config_path, config);
 
     if (error_while_reading) {
-        printf("Failed to read config file\n");
+        printf("FAILED TO READ CONFIG FILE\n");
+        exit(4);
+    }
+
+    // If not specified, by default the program will read from config file
+    command_code command = strcmp(config->program_mode, "compress") == 0 ? COMPRESS : DECOMPRESS;
+    unsigned manually_set_command = 0;
+    // Flag vector to store all flags used in the command
+    unsigned int flags_num = 0;
+    flag* flags = calloc(0, sizeof(flag));
+    if (flags == NULL) {
+        printf("MEMORY ALLOCATION FAILED\n");
         exit(1);
     }
+    // Whitelist of possible non-commands on which we don't want program to break
+    char* cmd_exceptions[] = {"-DUSE_CLI", "-DUSE_UI"};
 
     /* IMPORTANT FLAGS THAT SKIP REGULAR EXECUTION */
     for (int i = 1; i < argc; i++) {
@@ -33,6 +35,7 @@ int cli_main(int argc, char *argv[]) {
             // Detecting help command will print help info and finish the program
             // Makes flag queue irrelevant
             command = HELP;
+            manually_set_command = 1;
             printf("Usage: ./compresso [cmd] [options]\n");
             printf("Options:\n");
             printf("  --help, -h    Display this help message\n");
@@ -42,6 +45,7 @@ int cli_main(int argc, char *argv[]) {
             // Detecting about command will print about info and finish the program
             // Makes flag queue irrelevant
             command = ABOUT;
+            manually_set_command = 1;
             printf("Compresso is a compression tool written in C.\n");
             printf("It is a university project at Faculty Of Electrical Engineering for a course"
                    " called Practicum in Programming 2, which covers practical usages of C programming language.\n");
@@ -63,29 +67,31 @@ int cli_main(int argc, char *argv[]) {
     for (int i = 2; i < argc; i++) {
         char *current_arg = argv[i];
         if (command_check(current_arg, "--compress", 1, (char*[]){"-c"})) {
-            if (command == DECOMPRESS) {
-                printf("Cannot use both --compress and --decompress flags\n");
-                exit(1);
+            if (command == DECOMPRESS && manually_set_command) {
+                printf("FALSE USAGE: Cannot use both --compress and --decompress flags\n");
+                exit(5);
             }
+            manually_set_command = 1;
             command = COMPRESS;
         }
         else if (command_check(current_arg, "--decompress", 1, (char*[]){"-d"})) {
-            if (command == COMPRESS) {
-                printf("Cannot use both --compress and --decompress flags\n");
-                exit(1);
+            if (command == COMPRESS && manually_set_command) {
+                printf("FALSE USAGE: Cannot use both --compress and --decompress flags\n");
+                exit(5);
             }
+            manually_set_command = 1;
             command = DECOMPRESS;
         }
         else if (command_check(current_arg, "--output", 1, (char*[]){"-o"})) {
             flag* tmp = realloc(flags, (flags_num + 1) * sizeof(flag));
             if (tmp == NULL) {
-                printf("Failed to allocate memory for flags\n");
+                printf("MEMORY ALLOCATION FAILED\n");
                 exit(1);
             }
             flags = tmp;
             flags[flags_num].code = OUTPUT;
-            if (i + 1 > argc || verify_argument(argv[i + 1], "-")) {
-                // Place for argument is not found or it is a flag, so we use default config
+            if (i + 1 > argc && verify_argument(argv[i + 1], "-")) {
+                // Place for argument is not found, or it is a flag, so we use default config
                 flags[flags_num].parameter = config->output_path;
             } else {
                 // If argument is found, we use that
@@ -97,13 +103,13 @@ int cli_main(int argc, char *argv[]) {
         else if (command_check(current_arg, "--log", 1, (char*[]){"-l"})) {
             flag* tmp = realloc(flags, (flags_num + 1) * sizeof(flag));
             if (tmp == NULL) {
-                printf("Failed to allocate memory for flags\n");
+                printf("MEMORY ALLOCATION FAILED\n");
                 exit(1);
             }
             flags = tmp;
             flags[flags_num].code = LOG;
-            if (i + 1 > argc || verify_argument(argv[i + 1], "-")) {
-                // Place for argument is not found or it is a flag, so we use default config
+            if (i + 1 > argc && verify_argument(argv[i + 1], "-")) {
+                // Place for argument is not found, or it is a flag, so we use default config
                 flags[flags_num].parameter = config->log_path;
             } else {
                 // If argument is found, we use that
@@ -112,7 +118,6 @@ int cli_main(int argc, char *argv[]) {
             }
             flags_num++;
         }
-        // TODO: match wildcard symbols as valid input as well
         else {
             // If the current argument is not a command, and it is not in the whitelist of exceptions, then it is an invalid command
             int is_exception = 0;
@@ -123,9 +128,16 @@ int cli_main(int argc, char *argv[]) {
                 }
             }
             if (!is_exception) {
-                printf("Invalid command, flag or symbol: %s\n", current_arg);
-                exit(1);
+                printf("FALSE USAGE: Invalid command detected:%s\n", current_arg);
+                exit(5);
             }
+        }
+    }
+
+    char *log_path = NULL;
+    for (int i = 0; i < flags_num; i++) {
+        if (flags[i].code == LOG) {
+            log_path = flags[i].parameter;
         }
     }
 
@@ -134,10 +146,18 @@ int cli_main(int argc, char *argv[]) {
             printf("No valid command detected, skipping regular execution\n");
             break;
         case COMPRESS:
-            compress(target_file, flags, flags_num);
+            if (log_path) {
+                compress(target_file, flags, flags_num, config);
+            } else {
+                compress_without_log(target_file, flags, flags_num, config);
+            }
             break;
         case DECOMPRESS:
-            decompress(target_file, flags, flags_num);
+            if (log_path) {
+                decompress(target_file, flags, flags_num, config);
+            } else {
+                decompress_without_log(target_file, flags, flags_num, config);
+            }
             break;
         case HELP:
             printf("Help command detected, skipping regular execution\n");
