@@ -1,4 +1,6 @@
 #include "ui_utils.h"
+#include "../core/log.h"
+#include "../core/lzw.h"
 
 // Variables I need to access from multiple places
 GtkTextBuffer *log_buffer = NULL;
@@ -89,12 +91,6 @@ int initiate_log_container(GtkWidget *grid) {
     gtk_box_append(GTK_BOX(wrapper), log_buttons_container);
     gtk_box_append(GTK_BOX(wrapper), log_view_scrollable_container);
     gtk_frame_set_child(GTK_FRAME(log_frame), wrapper);
-
-    for (int i = 0; i < 50; i++) {
-        char buffer[1024];
-        sprintf(buffer, "Log number %d\n", i);
-        append_to_log_buffer(buffer);
-    }
 
     gtk_grid_attach(GTK_GRID(grid), log_frame, position.column, position.row, position.width, position.height);
 
@@ -281,12 +277,164 @@ void show_add_files_dialog() {
     gtk_file_dialog_open_multiple(dialog, global_window, NULL, finish_open_multiple_dialog, NULL);
 }
 
-void begin_process() {
-    if (!gtk_switch_get_active(GTK_SWITCH(compression_switch))) {
-        printf("Compressing\n");
-    } else {
-        printf("Decompressing\n");
+char* extract_file_from_path(char* string){
+    int len = 0;
+    int slash_index = 0;
+    while(1){
+        if(string[len] == '\0')
+            break;
+        if(string[len] == '/')
+            slash_index = len;
+        len++;
     }
+    char* name = malloc(sizeof(char) * len);
+    int j = 0;
+    for(int i = slash_index+1;i < len;i++){
+        name[j] = string[i];
+        name[j+1] = '\0';
+        j++;
+    }
+
+    return name;
+
+}
+char *extract_path_from_path(char* string){
+    int len = 0;
+    int slash_index = 0;
+    while(1){
+        if(string[len] == '\0')
+            break;
+        if(string[len] == '/')
+            slash_index = len;
+        len++;
+    }
+    char* name = malloc(sizeof(char) * len);
+    for(int i = 0;i < slash_index;i++){
+        name[i] = string[i];
+        name[i+1] = '\0';
+    }
+
+    return name;
+}
+char *extract_path_from_compressed(char* string){
+    int len = 0;
+    int slash_index = 0;
+    while(1){
+        if(string[len] == '\0')
+            break;
+        if(string[len] == '.')
+            slash_index = len;
+        len++;
+    }
+    char* name = malloc(sizeof(char)*len);
+    for(int i = 0;i < slash_index;i++){
+        name[i] = string[i];
+        name[i+1] = '\0';
+
+    }
+
+    return name;
+}
+
+void begin_process() {
+    if (files[0] == NULL) {
+        g_print("No files selected\n");
+        return;
+    }
+
+    if (!gtk_switch_get_active(GTK_SWITCH(compression_switch))) {
+        compress_ui();
+    } else {
+        decompress_ui();
+    }
+}
+
+int compress_ui() {
+    // Start counting time
+    clock_t start, end;
+    char *current_time, *log_line;
+
+    for (int i = 0; files[i] != NULL; i++) {
+        char time_taken_str[128];
+        char *filename = files[i];
+        char *extracted_filename = extract_file_from_path(filename);
+
+        start = clock();
+        current_time = get_current_timestamp();
+        sprintf(time_taken_str, "LZW started on %s", extracted_filename);
+        log_line = get_log_line(current_time, "LZW compression",time_taken_str);
+        append_to_log_buffer(log_line);
+        free(current_time);
+        free(log_line);
+
+
+        char new_path[256];
+        strcpy(new_path, filename);
+        strcat(new_path, ".lzw");
+        compress_lzw(filename, new_path);
+        end = clock();
+        current_time = get_current_timestamp();
+        sprintf(time_taken_str, "LZW finished on %s", extracted_filename);
+        log_line = get_log_line(current_time, "LZW compression", time_taken_str);
+        append_to_log_buffer(log_line);
+        free(current_time);
+        free(log_line);
+
+        double time_taken = ((double)end - (double)start) / CLOCKS_PER_SEC;
+        sprintf(time_taken_str, "LZW on %s completed in %f seconds", extracted_filename, time_taken);
+        current_time = get_current_timestamp();
+        log_line = get_log_line(current_time, "LZW Finished", time_taken_str);
+        append_to_log_buffer(log_line);
+        free(current_time);
+        free(log_line);
+
+        free(extracted_filename);
+    }
+
+    return 0;
+}
+
+int decompress_ui() {
+    // Start counting time
+    clock_t start, end;
+    char *current_time, *log_line;
+
+    for (int i = 0; files[i] != NULL; i++) {
+        char time_taken_str[128];
+        char *filename = files[i];
+        char *extracted_filename = extract_file_from_path(filename);
+
+        start = clock();
+        current_time = get_current_timestamp();
+        sprintf(time_taken_str, "LZW started on %s", extracted_filename);
+        log_line = get_log_line(current_time, "LZW decompression",time_taken_str);
+        append_to_log_buffer(log_line);
+        free(current_time);
+        free(log_line);
+
+        char *path = extract_path_from_compressed(filename);
+        decompress_lzw(filename, path);
+        free(path);
+        end = clock();
+        current_time = get_current_timestamp();
+        sprintf(time_taken_str, "LZW finished on %s", extracted_filename);
+        log_line = get_log_line(current_time, "LZW decompression", time_taken_str);
+        append_to_log_buffer(log_line);
+        free(current_time);
+        free(log_line);
+
+        double time_taken = ((double)end - (double)start) / CLOCKS_PER_SEC;
+        sprintf(time_taken_str, "LZW on %s completed in %f seconds", extracted_filename, time_taken);
+        current_time = get_current_timestamp();
+        log_line = get_log_line(current_time, "LZW Finished", time_taken_str);
+        append_to_log_buffer(log_line);
+        free(current_time);
+        free(log_line);
+
+        free(extracted_filename);
+    }
+
+    return 0;
 }
 
 void on_window_closed() {

@@ -29,6 +29,8 @@ void add_file(char *file);
 void finish_open_multiple_dialog(GObject* source_object, GAsyncResult* res, gpointer user_data);
 void show_add_files_dialog();
 void begin_process();
+int compress_ui();
+int decompress_ui();
 void on_window_closed();
 
 typedef struct grid_position_t {

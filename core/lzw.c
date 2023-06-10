@@ -1,4 +1,3 @@
-
 #include"lzw.h"
 
 hash_entry *hash_table = NULL;
@@ -165,7 +164,7 @@ int return_first(dictionary *dict, int code){
     }
     return tmp_char;
 }
-char* compress_lzw(char* input_file_name){
+char* compress_lzw(char* input_file_name, char* output_file_name) {
     dictionary *dict;
     dict = (dictionary*)malloc(sizeof(dictionary));
     if(!dict) {
@@ -185,13 +184,7 @@ char* compress_lzw(char* input_file_name){
         add_entry(make_key(-1, i) , i);
     }
 
-    char *file_name;
-    file_name = (char*)malloc(20*sizeof(char));
-    if(!file_name) {
-        printf("MEMORY ALLOCATION FAILED\n");
-        exit(1);
-    }
-    generate_random_filename(file_name);
+    //    generate_random_filename(file_name);
 
     size_t size;
 
@@ -204,7 +197,7 @@ char* compress_lzw(char* input_file_name){
     size = ftell(fp);
     fseek(fp, 0, SEEK_SET);
 
-    FILE* fp_write = fopen(file_name, "wb");
+    FILE* fp_write = fopen(output_file_name, "wb");
     if(!fp_write){
         printf("FAILED OPENING FILE\n");
         exit(2);
@@ -236,7 +229,7 @@ char* compress_lzw(char* input_file_name){
     free_dictionary(dict);
     fclose(fp_write);
     free_hash_table();
-    return file_name;
+    return output_file_name;
 
 }
 void decompress_lzw(char* input_file_name, char *output_file_name){
