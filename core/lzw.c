@@ -1,6 +1,6 @@
 #include"lzw.h"
 
-hash_entry *hash_table = NULL;
+hash_entry *hash_table_lzw= NULL;
 void add_entry(char *key, int value) {
     hash_entry *entry = malloc(sizeof(hash_entry));
     if(!entry) {
@@ -9,13 +9,13 @@ void add_entry(char *key, int value) {
     }
     entry->key = key;
     entry->value = value;
-    HASH_ADD_STR(hash_table, key, entry);
+    HASH_ADD_STR(hash_table_lzw, key, entry);
 }
 int find_entry(char *key) {
     hash_entry *entry;
 
     // Use UT hash to find the entry with the given key in the global hash table
-    HASH_FIND_STR(hash_table, key, entry);
+    HASH_FIND_STR(hash_table_lzw, key, entry);
 
     // If the entry is found, return its value; otherwise, return -1
     if (entry) {
@@ -24,13 +24,13 @@ int find_entry(char *key) {
         return -1;
     }
 }
-void free_hash_table() {
+void free_hash_table_lzw() {
     hash_entry *current_entry, *tmp;
 
     // Iterate over each entry in the hash table
-    HASH_ITER(hh, hash_table, current_entry, tmp) {
+    HASH_ITER(hh, hash_table_lzw, current_entry, tmp) {
         // Remove the current entry from the hash table
-        HASH_DEL(hash_table, current_entry);
+        HASH_DEL(hash_table_lzw, current_entry);
 
         // Free the key and value associated with the entry
         free(current_entry->key);
@@ -50,24 +50,7 @@ char* make_key(int value1, int value2) {
     sprintf(key, "%d%s%d", value1, separator, value2);
     return key;
 }
-void generate_random_filename(char* filename_buffer) {
-    const char* prefix = "tmpfile";
-    int fd;
 
-
-    size_t filename_len = strlen(prefix) + 10;
-    char filename_template[filename_len + 1];
-    snprintf(filename_template, filename_len + 1, "%s-XXXXXX", prefix);
-
-
-    fd = mkstemp(filename_template);
-    if (fd == -1) {
-        printf("FAILED TO CREATE TEMPORARY FILE\n");
-        exit(3);
-    }
-
-    strncpy(filename_buffer, filename_template, filename_len + 1);
-}
 void free_dictionary(dictionary *dict) {
     if (dict != NULL) {
         if (dict->table != NULL) {
@@ -228,7 +211,7 @@ char* compress_lzw(char* input_file_name, char* output_file_name) {
     fwrite(&string, sizeof(int), 1, fp_write);
     free_dictionary(dict);
     fclose(fp_write);
-    free_hash_table();
+    free_hash_table_lzw();
     return output_file_name;
 
 }
@@ -316,7 +299,7 @@ void decompress_lzw(char* input_file_name, char *output_file_name){
 
     free_array(tmp_arr);
     free_dictionary(dict);
-    free_hash_table();
+    free_hash_table_lzw();
     remove(input_file_name);
 }
 

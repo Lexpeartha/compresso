@@ -33,9 +33,8 @@ typedef struct {
 
 void add_entry(char *key, int value);
 int find_entry(char *key);
-void free_hash_table();
+void free_hash_table_lzw();
 char* make_key(int value1, int value2);
-void generate_random_filename(char* filename_buffer);
 void free_dictionary(dictionary *dict) ;
 void free_array(array *a);
 void add_to_dict(dictionary *dict, int prefix, int new_char);

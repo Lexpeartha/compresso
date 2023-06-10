@@ -3,7 +3,7 @@
 #define INTERNAL_NODE 888
 #define MAX 10000
 
-hash_entry * hash_table = NULL;
+hash_entry_huffman * hash_table_huffman = NULL;
 output_hash * output_hash_table = NULL;
 
 int heap_left_child(int index){
@@ -49,13 +49,13 @@ void insert_value(Heap * heap, HeapNode * new){
     heap->nodes[i] = new;
 }
 
-Heap * form_min_heap(hash_entry * table) {
+Heap * form_min_heap(hash_entry_huffman * table) {
     // initializing the heap
     Heap * heap = calloc(1, sizeof(Heap));
     heap->nodes = calloc(HASH_COUNT(table), sizeof(HeapNode *));
     heap->len = 0;
 
-    hash_entry * s;
+    hash_entry_huffman * s;
     for (s = table; s != NULL; s = s->hh.next) {
         HeapNode * new = calloc(1, sizeof(HeapNode));
         if(new == NULL){
@@ -152,7 +152,7 @@ void free_tree(HeapNode * root) {
 }
 
 
-void print_byte_buffer2(Byte_buffer * byte_buffer){
+void print_byte_buffer2(Byte_buffer_static * byte_buffer){
     // print the contents of the byte_buffer
     FILE * out;
     out = fopen(OUTPUT, "ab");
@@ -170,7 +170,7 @@ void print_byte_buffer2(Byte_buffer * byte_buffer){
     byte_buffer->index = 7;
 }
 
-void fill_byte_buffer2(Byte_buffer * byte_buffer, const char * string){
+void fill_byte_buffer2(Byte_buffer_static * byte_buffer, const char * string){
     for(int i = 0; i < strlen(string); i++){
         if(string[i] == '0'){
             byte_buffer->byte &= ~(1 << byte_buffer->index);
@@ -261,8 +261,8 @@ void delete_file2(char * filename){
     }
 }
 
-void add_char(uint8_t symbol, hash_entry ** table) {
-    hash_entry * s;
+void add_char(uint8_t symbol, hash_entry_huffman ** table) {
+    hash_entry_huffman * s;
 
     s = calloc(1, sizeof *s);
     s->symbol = symbol;
@@ -271,13 +271,13 @@ void add_char(uint8_t symbol, hash_entry ** table) {
     HASH_ADD(hh, *table, symbol, sizeof(char), s);
 }
 
-hash_entry * find_char(uint8_t symbol, hash_entry ** table) {
-    hash_entry * s;
+hash_entry_huffman * find_char(uint8_t symbol, hash_entry_huffman ** table) {
+    hash_entry_huffman * s;
     HASH_FIND(hh, *table, &symbol, sizeof(uint8_t), s);
     return s;
 }
 
-char how_many_useful_bits2(Byte_buffer * byte_buffer){
+char how_many_useful_bits2(Byte_buffer_static * byte_buffer){
     return (char) (7 - byte_buffer->index);
 }
 
@@ -298,20 +298,20 @@ char * huffman_code_hash(uint8_t symbol, output_hash ** table) {
     return s->huffman;
 }
 
-void print_hash(hash_entry ** table) {
-    hash_entry * s;
+void print_hash(hash_entry_huffman ** table) {
+    hash_entry_huffman * s;
     for (s = *table; s != NULL; s = s->hh.next) {
         printf("\nsymbol: %c, freq: %ld", s->symbol, s->frequency);
     }
 }
 
-void export_hash_table(hash_entry * hashTable, const char* filename) {
+void export_hash_table(hash_entry_huffman * hashTable, const char* filename) {
     FILE* file = fopen(filename, "wb");
     if (file == NULL) {
         return;
     }
 
-    hash_entry * entry;
+    hash_entry_huffman * entry;
     for (entry = hashTable; entry != NULL; entry = entry->hh.next) {
         fwrite(&entry->symbol, sizeof(uint8_t), 1, file);
         fwrite(&entry->frequency, sizeof(long int), 1, file);
@@ -320,14 +320,14 @@ void export_hash_table(hash_entry * hashTable, const char* filename) {
     fclose(file);
 }
 
-hash_entry * import_hash_table(const char* filename) {
+hash_entry_huffman * import_hash_table(const char* filename) {
     FILE* file = fopen(filename, "rb");
     if (file == NULL) {
         printf("Error opening file for reading\n");
         return NULL;
     }
 
-    hash_entry * hashTable = NULL;
+    hash_entry_huffman * hashTable = NULL;
     uint8_t symbol; // key
     long int freq; // value
     size_t x;
@@ -338,7 +338,7 @@ hash_entry * import_hash_table(const char* filename) {
 
         if(x == 0) break;
 
-        hash_entry * entry = (hash_entry*)calloc(1, sizeof(hash_entry));
+        hash_entry_huffman * entry = (hash_entry_huffman*)calloc(1, sizeof(hash_entry_huffman));
         if (entry == NULL) {
             printf("Memory allocation error\n");
             fclose(file);
@@ -361,7 +361,7 @@ void remove_first_element2(uint8_t * buffer, int * len){
     (*len)--;
 }
 
-void free_hash_table(output_hash * table){
+void free_hash_table_huffman(output_hash * table){
 
     output_hash *current_entry, *tmp;
 
@@ -377,9 +377,9 @@ void free_hash_table(output_hash * table){
     }
 }
 
-void free_hash_table_hash_entry(hash_entry * table){
+void free_hash_table_hash_entry(hash_entry_huffman * table){
 
-    hash_entry *current_entry, *tmp;
+    hash_entry_huffman *current_entry, *tmp;
 
     // Iterate over each entry in the hash table
     HASH_ITER(hh, table, current_entry, tmp) {
@@ -409,7 +409,7 @@ int static_huffman_decode(char * filename){
 
     printf("\n\nDECOMPRESSION.");
 
-    hash_entry * novi = import_hash_table("hes_tabela");
+    hash_entry_huffman * novi = import_hash_table("hes_tabela");
     delete_file2(filename);
 
     // form the tree
@@ -513,8 +513,8 @@ void print_huffman_tree(HeapNode* root, int depth) {
         printf("Internal Node '%c' (Frequency: %ld)\n", root->data, root->frequency);
     }
 
-    print_huffman_tree(root->left_child, depth + 1);
-    print_huffman_tree(root->right_child, depth + 1);
+    print_huffman_tree((HeapNode *) root->left_child, depth + 1);
+    print_huffman_tree((HeapNode *) root->right_child, depth + 1);
 }
 
 
@@ -536,8 +536,8 @@ int static_huffman_encode(char filename[150]) {
     // read file
     while(fread(&data, sizeof(uint8_t), 1, in) == 1) {
         count++;
-        hash_entry *s = find_char(data, &hash_table);
-        if (s == NULL) add_char(data, &hash_table);
+        hash_entry_huffman *s = find_char(data, &hash_table_huffman);
+        if (s == NULL) add_char(data, &hash_table_huffman);
         else s->frequency++;
 
     }
@@ -546,11 +546,11 @@ int static_huffman_encode(char filename[150]) {
 
     fclose(in);
 
-    print_hash(&hash_table);
+    print_hash(&hash_table_huffman);
 
 
 
-    Heap * min_heap = form_min_heap(hash_table);
+    Heap * min_heap = form_min_heap(hash_table_huffman);
 
     HeapNode * static_huffman_root = form_huffman_tree(min_heap);
 
@@ -570,7 +570,7 @@ int static_huffman_encode(char filename[150]) {
         exit(1);
     }
 
-    Byte_buffer * byte_buffer = calloc(1, sizeof(Byte_buffer));
+    Byte_buffer_static * byte_buffer = calloc(1, sizeof(Byte_buffer_static));
     byte_buffer->byte = 0;
     byte_buffer->index = 7;
 
@@ -600,13 +600,13 @@ int static_huffman_encode(char filename[150]) {
     fwrite(&useful_bits, sizeof(uint8_t), 1, out);
     fclose(out);
 
-    export_hash_table(hash_table, "hes_tabela");
+    export_hash_table(hash_table_huffman, "hes_tabela");
 
 
-    free_hash_table(output_hash_table);
+    free_hash_table_huffman(output_hash_table);
     free(byte_buffer);
     free_tree(static_huffman_root);
-    free_hash_table_hash_entry(hash_table);
+    free_hash_table_hash_entry(hash_table_huffman);
     free_heap(min_heap);
 
     // FOR TESTING PURPOSES
