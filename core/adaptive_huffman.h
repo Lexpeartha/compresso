@@ -14,18 +14,13 @@ typedef struct Node {
     long int weight;
     long int identifier;
     uint8_t symbol;
-    int comparison;
+    int flag;
 } Node;
 
 typedef struct {
     struct Node ** nodes;
     int length;
 } Queue_Stack;
-
-//typedef struct {
-//    int * arr;
-//    int len;
-//} array;
 
 typedef struct {
     uint8_t byte;
@@ -51,8 +46,9 @@ void print_byte_buffer(Byte_buffer * byte_buffer, char output_filename_temp[]);
 void fill_byte_buffer(Byte_buffer * byte_buffer, const uint8_t * string, int len, char output_filename_temp[]);
 void transmit_code(Node * root, uint8_t symbol, int exists, Byte_buffer * byte_buffer, char output_filename[], char output_filename_temp[]);
 void execute_adaptive_huffman(Node * root, unsigned char symbol, Byte_buffer * byte_buffer, char output_filename[], char output_filename_temp[]);
-uint8_t navigate(Node * root, const uint8_t buffer[], int buffer_len);
+//uint8_t navigate(Node * root, const uint8_t buffer[], int buffer_len);
 void remove_first_element(uint8_t * buffer, int * len);
 int adaptive_huffman_decode(char * filename);
 uint8_t how_many_useful_bits(Byte_buffer * byte_buffer);
+void free_tree2(Node * root);
 #endif //COMPRESSO_ADAPTIVE_HUFFMAN_H

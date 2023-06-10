@@ -315,7 +315,6 @@ void export_hash_table(hash_entry * hashTable, const char* filename) {
     for (entry = hashTable; entry != NULL; entry = entry->hh.next) {
         fwrite(&entry->symbol, sizeof(uint8_t), 1, file);
         fwrite(&entry->frequency, sizeof(long int), 1, file);
-        //fprintf(file, "%c %ld\n", entry->symbol, entry->frequency);
     }
 
     fclose(file);
@@ -375,10 +374,7 @@ void free_hash_table(output_hash * table){
         free(current_entry->huffman);
         free(current_entry);
 
-        // Note: If your value contains dynamically allocated memory,
-        // make sure to free it before freeing the hash_entry struct.
     }
-
 }
 
 void free_hash_table_hash_entry(hash_entry * table){
@@ -393,8 +389,6 @@ void free_hash_table_hash_entry(hash_entry * table){
         // Free the key and value associated with the entry
         free(current_entry);
 
-        // Note: If your value contains dynamically allocated memory,
-        // make sure to free it before freeing the hash_entry struct.
     }
 
 }
@@ -455,7 +449,7 @@ int static_huffman_decode(char * filename){
             fread(&penultimate, sizeof(uint8_t), 1, in);
             fread(&ultimate, sizeof(uint8_t), 1, in);
             counter += 2;
-            printf("\nDa: %d", ultimate);
+
 
             for (int i = 7; i >= 7 - ultimate + 1; i--) {
                 int bit = (penultimate >> i) & 1;
@@ -525,13 +519,7 @@ void print_huffman_tree(HeapNode* root, int depth) {
 
 
 // static_huffman_encode
-int static_huffman_encode(char * filename) {
-    //char * filename = "input.txt";
-    //filename = "robinson_crusoe.txt";
-    //filename = "tmpfile-jJbl8hnull";
-    //filename = "robinson_crusoe.txt";
-
-
+int static_huffman_encode(char filename[150]) {
     FILE * in;
     in = fopen(filename, "rb");
 
@@ -586,7 +574,7 @@ int static_huffman_encode(char * filename) {
     byte_buffer->byte = 0;
     byte_buffer->index = 7;
 
-    printf("\n\nIteriram.");
+    printf("\n\nIterating.");
 
     // iterating through the file again, and writing codes into export file
     printf("\nSize of dictionary: %d\n\n", HASH_COUNT(output_hash_table));
@@ -614,8 +602,6 @@ int static_huffman_encode(char * filename) {
 
     export_hash_table(hash_table, "hes_tabela");
 
-    printf("\n\n\n");
-    //print_huffman_tree(static_huffman_root, 0);
 
     free_hash_table(output_hash_table);
     free(byte_buffer);
@@ -623,7 +609,8 @@ int static_huffman_encode(char * filename) {
     free_hash_table_hash_entry(hash_table);
     free_heap(min_heap);
 
-    static_huffman_decode("static_decompressed");
+    // FOR TESTING PURPOSES
+    //static_huffman_decode("static_decompressed");
 
 
     return 0;
