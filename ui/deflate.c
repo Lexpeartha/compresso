@@ -22,22 +22,38 @@ void generate_random_filename(char* filename_buffer) {
     strncpy(filename_buffer, filename_template, filename_len + 1);
 }
 
-void deflate_static_compression(char *file_to_read, char *file_to_write) {
+void deflate_compression(char *file_to_read, char *file_to_write) {
     char filename_buffer[100];
-
     generate_random_filename(filename_buffer);
+
     compress_lzw(file_to_read, filename_buffer);
-    static_huffman_encode(filename_buffer, file_to_write);
+    adaptive_huffman_encode(filename_buffer, file_to_write);
+}
+
+void deflate_decompression(char *file_to_read, char *file_to_write) {
+    char filename_buffer[100];
+    generate_random_filename(filename_buffer);
+
+    adaptive_huffman_decode(filename_buffer, file_to_write);
+    decompress_lzw(file_to_read, filename_buffer);
+}
+
+void deflate_static_compression(char *file_to_read, char *file_to_write) {
+//    char filename_buffer[100];
+//
+//    generate_random_filename(filename_buffer);
+//    compress_lzw(file_to_read, filename_buffer);
+//    static_huffman_encode(filename_buffer, file_to_write);
 
     return;
 }
 
 void deflate_static_decompression(char *file_to_read, char *file_to_write) {
-    char filename_buffer[100];
-
-    generate_random_filename(filename_buffer);
-    static_huffman_decode(file_to_read, filename_buffer);
-    decompress_lzw(filename_buffer, file_to_write);
+//    char filename_buffer[100];
+//
+//    generate_random_filename(filename_buffer);
+//    static_huffman_decode(file_to_read, filename_buffer);
+//    decompress_lzw(filename_buffer, file_to_write);
 
     return;
 }

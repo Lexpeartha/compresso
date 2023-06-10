@@ -458,12 +458,11 @@ void remove_first_element(uint8_t * buffer, int * len){
     (*len)--;
 }
 
-int adaptive_huffman_decode(char * filename){
-
+int adaptive_huffman_decode(char *filename, char *output_file){
     char filename_copy[150];
     strcpy(filename_copy, filename);
     char decompressed[150];
-    sprintf(decompressed, "%s-DECOMPRESSED", filename);
+    sprintf(decompressed, "%s", output_file);
 
     FILE * in;
     FILE * out;
@@ -614,11 +613,7 @@ uint8_t how_many_useful_bits(Byte_buffer * byte_buffer){
 }
 
 // adaptive_huffman_encode
-int adaptive_huffman_encode(char filename[150]){
-
-    char output_filename[150];
-    sprintf(output_filename, "adaptive_output");
-
+int adaptive_huffman_encode(char filename[150], char *output_filename) {
     char output_filename_temp[150];
     sprintf(output_filename_temp, "%s-temp", output_filename);
 

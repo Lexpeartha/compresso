@@ -48,7 +48,8 @@ void transmit_code(Node * root, uint8_t symbol, int exists, Byte_buffer * byte_b
 void execute_adaptive_huffman(Node * root, unsigned char symbol, Byte_buffer * byte_buffer, char output_filename[], char output_filename_temp[]);
 //uint8_t navigate(Node * root, const uint8_t buffer[], int buffer_len);
 void remove_first_element(uint8_t * buffer, int * len);
-int adaptive_huffman_decode(char * filename);
+int adaptive_huffman_decode(char * filename, char *output_file);
+int adaptive_huffman_encode(char * filename, char *output_file);
 uint8_t how_many_useful_bits(Byte_buffer * byte_buffer);
 void free_tree2(Node * root);
 #endif //COMPRESSO_ADAPTIVE_HUFFMAN_H
