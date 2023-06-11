@@ -6,8 +6,8 @@
 
 unsigned int log_entry_number = 0;
 
-char* get_current_timestamp() {
-    char* timestamp = malloc(100 * sizeof(char));
+char *get_current_timestamp() {
+    char *timestamp = malloc(100 * sizeof(char));
     time_t rawtime;
     struct tm *timeinfo;
 
@@ -18,7 +18,7 @@ char* get_current_timestamp() {
     return timestamp;
 }
 
-char* get_log_line(char* timestamp, char* process_name, char* entry) {
+char *get_log_line(char *timestamp, char *process_name, char *entry) {
     char *line = calloc(sizeof(char), strlen(timestamp) + strlen(process_name) + strlen(entry) + 75);
 
     // Generate log entries

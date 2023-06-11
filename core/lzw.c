@@ -1,9 +1,10 @@
 #include"lzw.h"
 
-hash_entry *hash_table_lzw= NULL;
+hash_entry *hash_table_lzw = NULL;
+
 void add_entry(char *key, int value) {
     hash_entry *entry = malloc(sizeof(hash_entry));
-    if(!entry) {
+    if (!entry) {
         printf("MEMORY ALLOCATION FAILED\n");
         exit(1);
     }
@@ -11,6 +12,7 @@ void add_entry(char *key, int value) {
     entry->value = value;
     HASH_ADD_STR(hash_table_lzw, key, entry);
 }
+
 int find_entry(char *key) {
     hash_entry *entry;
 
@@ -24,6 +26,7 @@ int find_entry(char *key) {
         return -1;
     }
 }
+
 void free_hash_table_lzw() {
     hash_entry *current_entry, *tmp;
 
@@ -40,10 +43,11 @@ void free_hash_table_lzw() {
         // make sure to free it before freeing the hash_entry struct.
     }
 }
-char* make_key(int value1, int value2) {
-    char* separator = "_";
-    char* key = malloc(sizeof(char) * (strlen(separator) + 2*sizeof(int)));
-    if(!key) {
+
+char *make_key(int value1, int value2) {
+    char *separator = "_";
+    char *key = malloc(sizeof(char) * (strlen(separator) + 2 * sizeof(int)));
+    if (!key) {
         printf("MEMORY ALLOCATION FAILED\n");
         exit(1);
     }
@@ -60,15 +64,17 @@ void free_dictionary(dictionary *dict) {
         free(dict); // free the memory allocated for the dictionary structure
     }
 }
+
 void free_array(array *a) {
     free(a->arr);
     a->arr = NULL;
     free(a);
 }
+
 void add_to_dict(dictionary *dict, int prefix, int new_char) {
     if (dict->len >= dict->allocated) {
         dict->allocated += 1000000;
-        dict->table = (dict_element*) realloc(dict->table, dict->allocated * sizeof(dict_element));
+        dict->table = (dict_element *) realloc(dict->table, dict->allocated * sizeof(dict_element));
         if (!dict->table) {
             printf("MEMORY ALLOCATION FAILED\n");
             exit(1);
@@ -79,22 +85,25 @@ void add_to_dict(dictionary *dict, int prefix, int new_char) {
     add_entry(make_key(prefix, new_char), dict->len);
     dict->len++;
 }
-int return_prefix(dictionary *dict, int code){
+
+int return_prefix(dictionary *dict, int code) {
     return dict->table[code].prefix;
 }
-int return_new_char(dictionary *dict, int code){
+
+int return_new_char(dictionary *dict, int code) {
     return dict->table[code].new_char;
 }
-array* print_string(dictionary *dict, int code){
+
+array *print_string(dictionary *dict, int code) {
     array *arr;
-    arr = (array*)malloc(sizeof(array));
-    if(!arr) {
+    arr = (array *) malloc(sizeof(array));
+    if (!arr) {
         printf("MEMORY ALLOCATION FAILED\n");
         exit(1);
     }
     arr->len = 1;
-    arr->arr = (int*)malloc(sizeof(int));
-    if(!arr->arr){
+    arr->arr = (int *) malloc(sizeof(int));
+    if (!arr->arr) {
         printf("MEMORY ALLOCATION FAILED\n");
         exit(1);
     }
@@ -102,76 +111,74 @@ array* print_string(dictionary *dict, int code){
     arr->arr[0] = return_new_char(dict, code);
     int tmp_prefix = return_prefix(dict, code);
     int tmp_char = return_new_char(dict, code);
-    while(tmp_prefix != -1){
+    while (tmp_prefix != -1) {
         tmp_char = return_new_char(dict, tmp_prefix);
         tmp_prefix = return_prefix(dict, tmp_prefix);
         arr->len++;
         arr->arr = realloc(arr->arr, arr->len * sizeof(int));
-        if(!arr->arr){
+        if (!arr->arr) {
             printf("MEMORY ALLOCATION FAILED\n");
             exit(1);
         }
-        arr->arr[arr->len-1] = tmp_char;
+        arr->arr[arr->len - 1] = tmp_char;
     }
-    array *return_arr = (array*)malloc(sizeof(array));
-    if(!return_arr) {
+    array *return_arr = (array *) malloc(sizeof(array));
+    if (!return_arr) {
         printf("MEMORY ALLOCATION FAILED\n");
         exit(1);
     }
-    return_arr->arr = (int*)malloc(arr->len*sizeof(int));
-    if(!return_arr->arr) {
+    return_arr->arr = (int *) malloc(arr->len * sizeof(int));
+    if (!return_arr->arr) {
         printf("MEMORY ALLOCATION FAILED\n");
         exit(1);
     }
     return_arr->len = arr->len;
     int x = 0;
     int i;
-    for(i = arr->len-1;i >= 0;i--){
+    for (i = arr->len - 1; i >= 0; i--) {
         return_arr->arr[x] = arr->arr[i];
         x++;
     }
     free(arr->arr);
 
-
     return return_arr;
-
-
-
 }
-int return_first(dictionary *dict, int code){
+
+int return_first(dictionary *dict, int code) {
     int tmp_prefix = return_prefix(dict, code);
     int tmp_char = return_new_char(dict, code);
-    while(tmp_prefix != -1){
+    while (tmp_prefix != -1) {
         tmp_char = return_new_char(dict, tmp_prefix);
         tmp_prefix = return_prefix(dict, tmp_prefix);
     }
     return tmp_char;
 }
-char* compress_lzw(char* input_file_name, char* output_file_name) {
+
+char *compress_lzw(char *input_file_name, char *output_file_name) {
     dictionary *dict;
-    dict = (dictionary*)malloc(sizeof(dictionary));
-    if(!dict) {
+    dict = (dictionary *) malloc(sizeof(dictionary));
+    if (!dict) {
         printf("MEMORY ALLOCATION FAILED\n");
         exit(1);
     }
-    dict->table = (dict_element*)malloc(256*sizeof(dict_element));
-    if(!dict->table) {
+    dict->table = (dict_element *) malloc(256 * sizeof(dict_element));
+    if (!dict->table) {
         printf("MEMORY ALLOCATION FAILED\n");
         exit(1);
     }
     dict->len = 256;
     dict->allocated = 256;
-    for(int i = 0;i < dict->len;i++){
+    for (int i = 0; i < dict->len; i++) {
         dict->table[i].prefix = -1;
         dict->table[i].new_char = i;
-        add_entry(make_key(-1, i) , i);
+        add_entry(make_key(-1, i), i);
     }
 
     //    generate_random_filename(file_name);
 
     size_t size;
 
-    FILE* fp = fopen(input_file_name, "rb");
+    FILE *fp = fopen(input_file_name, "rb");
     if (!fp) {
         printf("FAILED OPENING FILE\n");
         exit(2);
@@ -180,8 +187,8 @@ char* compress_lzw(char* input_file_name, char* output_file_name) {
     size = ftell(fp);
     fseek(fp, 0, SEEK_SET);
 
-    FILE* fp_write = fopen(output_file_name, "wb");
-    if(!fp_write){
+    FILE *fp_write = fopen(output_file_name, "wb");
+    if (!fp_write) {
         printf("FAILED OPENING FILE\n");
         exit(2);
     }
@@ -195,7 +202,7 @@ char* compress_lzw(char* input_file_name, char* output_file_name) {
     int x = 1;
     int character = 0;
     int tmp;
-    while(x < size) {
+    while (x < size) {
         character = (int) fgetc(fp);
         tmp = find_entry(make_key(string, character));
         if (tmp != -1)
@@ -212,13 +219,14 @@ char* compress_lzw(char* input_file_name, char* output_file_name) {
     free_dictionary(dict);
     fclose(fp_write);
     free_hash_table_lzw();
+
     return output_file_name;
-
 }
-void decompress_lzw(char* input_file_name, char *output_file_name){
 
-    FILE* fp_write = fopen(input_file_name, "rb");
-    if(!fp_write){
+void decompress_lzw(char *input_file_name, char *output_file_name) {
+
+    FILE *fp_write = fopen(input_file_name, "rb");
+    if (!fp_write) {
         printf("FAILED OPENING FILE\n");
         exit(2);
     }
@@ -227,8 +235,8 @@ void decompress_lzw(char* input_file_name, char *output_file_name){
     size_write = ftell(fp_write);
     fseek(fp_write, 0, SEEK_SET);
 
-    FILE* output_file = fopen(output_file_name, "wb");
-    if(!output_file){
+    FILE *output_file = fopen(output_file_name, "wb");
+    if (!output_file) {
         printf("FAILED OPENING FILE\n");
         exit(2);
     }
@@ -239,13 +247,13 @@ void decompress_lzw(char* input_file_name, char *output_file_name){
 
 
     dictionary *dict;
-    dict = (dictionary*)malloc(sizeof(dictionary));
-    if(!dict) {
+    dict = (dictionary *) malloc(sizeof(dictionary));
+    if (!dict) {
         printf("MEMORY ALLOCATION FAILED\n");
         exit(1);
     }
-    dict->table = (dict_element*)malloc(256*sizeof(dict_element));
-    if(!dict->table) {
+    dict->table = (dict_element *) malloc(256 * sizeof(dict_element));
+    if (!dict->table) {
         printf("MEMORY ALLOCATION FAILED\n");
         exit(1);
     }
@@ -253,8 +261,7 @@ void decompress_lzw(char* input_file_name, char *output_file_name){
     dict->allocated = 256;
 
 
-
-    for(int i = 0;i < dict->len;i++){
+    for (int i = 0; i < dict->len; i++) {
         dict->table[i].prefix = -1;
         dict->table[i].new_char = i;
     }
@@ -262,32 +269,31 @@ void decompress_lzw(char* input_file_name, char *output_file_name){
     int old_code;
     int new_code;
     int character = 0;
-    int len = size_write/4;
-    array* tmp_arr;
+    int len = size_write / 4;
+    array *tmp_arr;
     uint8_t convertor;
     fread(&old_code, sizeof(int), 1, fp_write);
     convertor = old_code;
-    fwrite(&convertor, sizeof(uint8_t) , 1, output_file);
-    for(int j = 1; j < len;j++){
+    fwrite(&convertor, sizeof(uint8_t), 1, output_file);
+    for (int j = 1; j < len; j++) {
         fread(&new_code, sizeof(int), 1, fp_write);
-        if(new_code >= dict->len){
+        if (new_code >= dict->len) {
             tmp_arr = print_string(dict, old_code);
-            for(int i = 0;i < tmp_arr->len;i++){
+            for (int i = 0; i < tmp_arr->len; i++) {
                 convertor = tmp_arr->arr[i];
-                fwrite(&convertor, sizeof(uint8_t) , 1, output_file);
+                fwrite(&convertor, sizeof(uint8_t), 1, output_file);
             }
 
 
             tmp_arr = print_string(dict, character);
-            for(int i = 0;i < tmp_arr->len;i++){
+            for (int i = 0; i < tmp_arr->len; i++) {
                 convertor = tmp_arr->arr[i];
-                fwrite(&convertor, sizeof(uint8_t) , 1, output_file);
+                fwrite(&convertor, sizeof(uint8_t), 1, output_file);
             }
 
-        }
-        else{
+        } else {
             tmp_arr = print_string(dict, new_code);
-            for(int i = 0;i < tmp_arr->len;i++){
+            for (int i = 0; i < tmp_arr->len; i++) {
                 convertor = tmp_arr->arr[i];
                 fwrite(&convertor, sizeof(uint8_t), 1, output_file);
             }
