@@ -8,6 +8,12 @@ typedef void (*append_to_buffer_fn)(char *text);
 
 typedef void (*algorithm_fn)(char *file_to_read, append_to_buffer_fn fn);
 
+char *extract_file_from_path(const char *string);
+
+char *extract_path_from_path(const char *string);
+
+char *extract_path_from_compressed(const char *string);
+
 void generate_random_filename(char *filename_buffer);
 
 void deflate_static_compression(char *file_to_read, append_to_buffer_fn fn);

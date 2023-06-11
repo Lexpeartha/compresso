@@ -1,4 +1,5 @@
 #include "adaptive_huffman.h"
+#include "deflate.h"
 
 #define OUTPUT "adaptive_output"
 #define NYT 500 // a randomly picked number that won't occur in files
@@ -7,6 +8,42 @@
 
 int number_of_nodes = 0;
 int number_of_asciis = 0;
+
+void rename_file(char * filename, int number_of_ascii, uint8_t useful_bits) {
+    // Find the last occurrence of directory separator ('/') in the file path
+    char* last_slash = strrchr(filename, '/');
+
+    // /home/Documents/my_file.txt
+    // 0-0-my_file.txt
+
+    if (last_slash != NULL) {
+        // Replace the last part of the filename
+        char *path = extract_path_from_path(filename);
+        char *new_name = calloc(1, sizeof(char) * strlen(last_slash) + 50);
+        sprintf(new_name, "%s/%d-%d-", path, number_of_ascii, useful_bits);
+        strcat(new_name, last_slash + 1);
+        rename(filename, new_name);
+        free(path);
+        free(new_name);
+    } else {
+        char *new_name = calloc(1, sizeof(char) * strlen(last_slash) + 50);
+        sprintf(new_name, "%d-%d-%s", number_of_ascii, useful_bits, filename);
+        rename(filename, new_name);
+        free(new_name);
+    }
+}
+
+char *extract_needed_part(char * path){
+    char * last_slash = strrchr(path, '/');
+
+    if (last_slash != NULL) {
+        // Return the substring after the last slash
+        return last_slash + 1;
+    }
+
+    // If no slash found, return the entire path as the filename
+    return path;
+}
 
 Node *create_empty_tree() {
     // initialization of an empty tree
@@ -458,7 +495,7 @@ void remove_first_element(uint8_t *buffer, int *len) {
 
 int adaptive_huffman_decode(char *filename, char *output_file) {
     char filename_copy[150];
-    strcpy(filename_copy, filename);
+    strcpy(filename_copy, extract_needed_part(filename));
     char decompressed[150];
     sprintf(decompressed, "%s", output_file);
 
@@ -647,10 +684,6 @@ int adaptive_huffman_encode(char filename[150], char *output_filename) {
 
     printf("\n\nNumber of ASCIIs: %d", number_of_asciis);
 
-
-    char changed_name[150];
-    // %s-NUMBER OF ASCIIS-NUMBER OF USEFUL BITS AT THE PENULTIMATE BYTE
-    sprintf(changed_name, "%d-%d-%s", number_of_asciis, useful_bits, output_filename);
     FILE *destination;
     FILE *source;
     destination = fopen(output_filename, "ab");
@@ -664,7 +697,7 @@ int adaptive_huffman_encode(char filename[150], char *output_filename) {
     delete_file(output_filename_temp);
 
 
-    rename(output_filename, changed_name);
+    rename_file(output_filename, number_of_asciis, useful_bits);
 
 
     fclose(destination);

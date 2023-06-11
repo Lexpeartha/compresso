@@ -22,7 +22,7 @@ void generate_random_filename(char *filename_buffer) {
     strncpy(filename_buffer, filename_template, filename_len + 1);
 }
 
-char *extract_file_from_path(char *string) {
+char *extract_file_from_path(const char *string) {
     int len = 0;
     int slash_index = 0;
     while (1) {
@@ -43,7 +43,7 @@ char *extract_file_from_path(char *string) {
     return name;
 }
 
-char *extract_path_from_path(char *string) {
+char *extract_path_from_path(const char *string) {
     int len = 0;
     int slash_index = 0;
     while (1) {
@@ -62,7 +62,7 @@ char *extract_path_from_path(char *string) {
     return name;
 }
 
-char *extract_path_from_compressed(char *string) {
+char *extract_path_from_compressed(const char *string) {
     int len = 0;
     int slash_index = 0;
     while (1) {
