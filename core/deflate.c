@@ -244,21 +244,454 @@ void deflate_decompression(char *file_to_read, append_to_buffer_fn fn) {
 }
 
 void deflate_static_compression(char *file_to_read, append_to_buffer_fn fn) {
-//    char filename_buffer[100];
-//
-//    generate_random_filename(filename_buffer);
-//    compress_lzw(file_to_read, filename_buffer);
-//    static_huffman_encode(filename_buffer, file_to_write);
+    if (file_to_read == NULL)
+        return;
 
-    return;
+    char filename_buffer[256];
+    generate_random_filename(filename_buffer);
+
+    // Start counting time
+    clock_t start, end;
+    char *current_time, *log_line;
+
+    char time_taken_str[128];
+    char *extracted_filename = extract_file_from_path(file_to_read);
+    char *path = extract_path_from_path(file_to_read);
+    char *original_filename = extract_file_from_path(file_to_read);
+    char new_path[256];
+    char old_path[256];
+    double time_taken;
+
+    // LZW COMPRESSION
+    start = clock();
+    current_time = get_current_timestamp();
+    sprintf(time_taken_str, "LZW started on %s", extracted_filename);
+    log_line = get_log_line(current_time, "LZW compression", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    strcpy(new_path, path);
+    strcat(new_path, "/");
+    strcat(new_path, filename_buffer);
+    compress_lzw(file_to_read, new_path);
+    end = clock();
+    current_time = get_current_timestamp();
+    sprintf(time_taken_str, "LZW finished on %s", extracted_filename);
+    log_line = get_log_line(current_time, "LZW compression", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    time_taken = ((double) end - (double) start) / CLOCKS_PER_SEC;
+    sprintf(time_taken_str, "LZW on %s completed in %f seconds", extracted_filename, time_taken);
+    current_time = get_current_timestamp();
+    log_line = get_log_line(current_time, "LZW Finished", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    // HUFFMAN COMPRESSION
+    start = clock();
+    current_time = get_current_timestamp();
+    sprintf(time_taken_str, "Static Huffman started on %s", extracted_filename);
+    log_line = get_log_line(current_time, "Static Huffman compression", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    strcpy(old_path, new_path);
+    strcpy(new_path, path);
+    strcat(new_path, "/");
+    strcat(new_path, original_filename);
+    strcat(new_path, ".bin"); // ADDING EXTENSION ON FINAL ALGORITHM
+    static_huffman_encode(old_path, new_path);
+    end = clock();
+    current_time = get_current_timestamp();
+    sprintf(time_taken_str, "Static Huffman finished on %s", extracted_filename);
+    log_line = get_log_line(current_time, "Static Huffman compression", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    time_taken = ((double) end - (double) start) / CLOCKS_PER_SEC;
+    sprintf(time_taken_str, "Static Huffman on %s completed in %f seconds", extracted_filename, time_taken);
+    current_time = get_current_timestamp();
+    log_line = get_log_line(current_time, "Static Huffman Finished", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    free(path);
+    free(original_filename);
+    free(extracted_filename);
 }
 
 void deflate_static_decompression(char *file_to_read, append_to_buffer_fn fn) {
-//    char filename_buffer[100];
-//
-//    generate_random_filename(filename_buffer);
-//    static_huffman_decode(file_to_read, filename_buffer);
-//    decompress_lzw(filename_buffer, file_to_write);
+    if (file_to_read == NULL)
+        return;
 
-    return;
+    char filename_buffer[256];
+    generate_random_filename(filename_buffer);
+
+    // Start counting time
+    clock_t start, end;
+    char *current_time, *log_line;
+
+    char time_taken_str[128];
+    char *path = extract_path_from_path(file_to_read);
+    char *extracted_filename = extract_file_from_path(file_to_read);
+    char new_path[256];
+    double time_taken;
+    char *target_file_output = extract_path_from_compressed(file_to_read);
+
+    // HUFFMAN DECOMPRESSION
+    start = clock();
+    current_time = get_current_timestamp();
+    sprintf(time_taken_str, "Static Huffman started on %s", extracted_filename);
+    log_line = get_log_line(current_time, "Static Huffman decompression", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    strcpy(new_path, path);
+    strcat(new_path, "/");
+    strcat(new_path, filename_buffer);
+    static_huffman_decode(file_to_read, new_path);
+    end = clock();
+    current_time = get_current_timestamp();
+    sprintf(time_taken_str, "Static Huffman finished on %s", extracted_filename);
+    log_line = get_log_line(current_time, "Static Huffman decompression", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    time_taken = ((double) end - (double) start) / CLOCKS_PER_SEC;
+    sprintf(time_taken_str, "Static Huffman on %s completed in %f seconds", extracted_filename, time_taken);
+    current_time = get_current_timestamp();
+    log_line = get_log_line(current_time, "Static Huffman Finished", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    // LZW DECOMPRESSION
+    start = clock();
+    current_time = get_current_timestamp();
+    sprintf(time_taken_str, "LZW started on %s", extracted_filename);
+    log_line = get_log_line(current_time, "LZW decompression", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    decompress_lzw(new_path, target_file_output);
+    end = clock();
+    current_time = get_current_timestamp();
+    sprintf(time_taken_str, "LZW finished on %s", extracted_filename);
+    log_line = get_log_line(current_time, "LZW decompression", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    time_taken = ((double) end - (double) start) / CLOCKS_PER_SEC;
+    sprintf(time_taken_str, "LZW on %s completed in %f seconds", extracted_filename, time_taken);
+    current_time = get_current_timestamp();
+    log_line = get_log_line(current_time, "LZW Finished", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    free(path);
+    free(target_file_output);
+    free(extracted_filename);
+}
+
+void static_huffman_compression(char *file_to_read, append_to_buffer_fn fn) {
+    if (file_to_read == NULL)
+        return;
+
+    char filename_buffer[256];
+    generate_random_filename(filename_buffer);
+
+    // Start counting time
+    clock_t start, end;
+    char *current_time, *log_line;
+
+    char time_taken_str[128];
+    char *path = extract_path_from_path(file_to_read);
+    char *extracted_filename = extract_file_from_path(file_to_read);
+    char new_path[256];
+    double time_taken;
+
+    // HUFFMAN DECOMPRESSION
+    start = clock();
+    current_time = get_current_timestamp();
+    sprintf(time_taken_str, "Static Huffman started on %s", extracted_filename);
+    log_line = get_log_line(current_time, "Static Huffman compression", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    strcpy(new_path, path);
+    strcat(new_path, "/");
+    strcat(new_path, extracted_filename);
+    strcat(new_path, ".bin"); // ADDING EXTENSION ON FINAL ALGORITHM
+    static_huffman_encode(file_to_read, new_path);
+    end = clock();
+    current_time = get_current_timestamp();
+    sprintf(time_taken_str, "Static Huffman finished on %s", extracted_filename);
+    log_line = get_log_line(current_time, "Static Huffman compression", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    time_taken = ((double) end - (double) start) / CLOCKS_PER_SEC;
+    sprintf(time_taken_str, "Static Huffman on %s completed in %f seconds", extracted_filename, time_taken);
+    current_time = get_current_timestamp();
+    log_line = get_log_line(current_time, "Static Huffman Finished", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    free(path);
+    free(extracted_filename);
+}
+
+void static_huffman_decompression(char *file_to_read, append_to_buffer_fn fn) {
+    if (file_to_read == NULL)
+        return;
+
+    char filename_buffer[256];
+    generate_random_filename(filename_buffer);
+
+    // Start counting time
+    clock_t start, end;
+    char *current_time, *log_line;
+
+    char time_taken_str[128];
+    char *extracted_filename = extract_file_from_path(file_to_read);
+    double time_taken;
+    char *target_file_output = extract_path_from_compressed(file_to_read);
+
+    // HUFFMAN DECOMPRESSION
+    start = clock();
+    current_time = get_current_timestamp();
+    sprintf(time_taken_str, "Static Huffman started on %s", extracted_filename);
+    log_line = get_log_line(current_time, "Static Huffman decompression", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    static_huffman_decode(file_to_read, target_file_output);
+    end = clock();
+    current_time = get_current_timestamp();
+    sprintf(time_taken_str, "Static Huffman finished on %s", extracted_filename);
+    log_line = get_log_line(current_time, "Static Huffman decompression", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    time_taken = ((double) end - (double) start) / CLOCKS_PER_SEC;
+    sprintf(time_taken_str, "Static Huffman on %s completed in %f seconds", extracted_filename, time_taken);
+    current_time = get_current_timestamp();
+    log_line = get_log_line(current_time, "Static Huffman Finished", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    free(extracted_filename);
+    free(target_file_output);
+}
+
+void adaptive_huffman_compression(char *file_to_read, append_to_buffer_fn fn) {
+    if (file_to_read == NULL)
+        return;
+
+    char filename_buffer[256];
+    generate_random_filename(filename_buffer);
+
+    // Start counting time
+    clock_t start, end;
+    char *current_time, *log_line;
+
+    char time_taken_str[128];
+    char *path = extract_path_from_path(file_to_read);
+    char *extracted_filename = extract_file_from_path(file_to_read);
+    char new_path[256];
+    double time_taken;
+
+    // HUFFMAN DECOMPRESSION
+    start = clock();
+    current_time = get_current_timestamp();
+    sprintf(time_taken_str, "Adaptive Huffman started on %s", extracted_filename);
+    log_line = get_log_line(current_time, "Adaptive Huffman compression", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    strcpy(new_path, path);
+    strcat(new_path, "/");
+    strcat(new_path, extracted_filename);
+    strcat(new_path, ".bin"); // ADDING EXTENSION ON FINAL ALGORITHM
+    adaptive_huffman_encode(file_to_read, new_path);
+    end = clock();
+    current_time = get_current_timestamp();
+    sprintf(time_taken_str, "Adaptive Huffman finished on %s", extracted_filename);
+    log_line = get_log_line(current_time, "Adaptive Huffman compression", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    time_taken = ((double) end - (double) start) / CLOCKS_PER_SEC;
+    sprintf(time_taken_str, "Adaptive Huffman on %s completed in %f seconds", extracted_filename, time_taken);
+    current_time = get_current_timestamp();
+    log_line = get_log_line(current_time, "Adaptive Huffman Finished", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    free(path);
+    free(extracted_filename);
+}
+
+void adaptive_huffman_decompression(char *file_to_read, append_to_buffer_fn fn) {
+    if (file_to_read == NULL)
+        return;
+
+    char filename_buffer[256];
+    generate_random_filename(filename_buffer);
+
+    // Start counting time
+    clock_t start, end;
+    char *current_time, *log_line;
+
+    char time_taken_str[128];
+    char *extracted_filename = extract_file_from_path(file_to_read);
+    double time_taken;
+    char *target_file_output = extract_path_from_compressed(file_to_read);
+
+    // HUFFMAN DECOMPRESSION
+    start = clock();
+    current_time = get_current_timestamp();
+    sprintf(time_taken_str, "Static Huffman started on %s", extracted_filename);
+    log_line = get_log_line(current_time, "Static Huffman decompression", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    adaptive_huffman_decode(file_to_read, target_file_output);
+    end = clock();
+    current_time = get_current_timestamp();
+    sprintf(time_taken_str, "Static Huffman finished on %s", extracted_filename);
+    log_line = get_log_line(current_time, "Static Huffman decompression", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    time_taken = ((double) end - (double) start) / CLOCKS_PER_SEC;
+    sprintf(time_taken_str, "Static Huffman on %s completed in %f seconds", extracted_filename, time_taken);
+    current_time = get_current_timestamp();
+    log_line = get_log_line(current_time, "Static Huffman Finished", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    free(extracted_filename);
+    free(target_file_output);
+}
+
+void lzw_compression(char *file_to_read, append_to_buffer_fn fn) {
+    if (file_to_read == NULL)
+        return;
+
+    char filename_buffer[256];
+    generate_random_filename(filename_buffer);
+
+    // Start counting time
+    clock_t start, end;
+    char *current_time, *log_line;
+
+    char time_taken_str[128];
+    char *path = extract_path_from_path(file_to_read);
+    char *extracted_filename = extract_file_from_path(file_to_read);
+    char new_path[256];
+    double time_taken;
+
+    // HUFFMAN DECOMPRESSION
+    start = clock();
+    current_time = get_current_timestamp();
+    sprintf(time_taken_str, "LZW started on %s", extracted_filename);
+    log_line = get_log_line(current_time, "LZW compression", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    strcpy(new_path, path);
+    strcat(new_path, "/");
+    strcat(new_path, extracted_filename);
+    strcat(new_path, ".bin"); // ADDING EXTENSION ON FINAL ALGORITHM
+    compress_lzw(file_to_read, new_path);
+    end = clock();
+    current_time = get_current_timestamp();
+    sprintf(time_taken_str, "LZW finished on %s", extracted_filename);
+    log_line = get_log_line(current_time, "LZW compression", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    time_taken = ((double) end - (double) start) / CLOCKS_PER_SEC;
+    sprintf(time_taken_str, "LZW on %s completed in %f seconds", extracted_filename, time_taken);
+    current_time = get_current_timestamp();
+    log_line = get_log_line(current_time, "LZW Finished", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    free(path);
+    free(extracted_filename);
+}
+
+void lzw_decompression(char *file_to_read, append_to_buffer_fn fn) {
+    if (file_to_read == NULL)
+        return;
+
+    char filename_buffer[256];
+    generate_random_filename(filename_buffer);
+
+    // Start counting time
+    clock_t start, end;
+    char *current_time, *log_line;
+
+    char time_taken_str[128];
+    char *extracted_filename = extract_file_from_path(file_to_read);
+    double time_taken;
+    char *target_file_output = extract_path_from_compressed(file_to_read);
+
+    // HUFFMAN DECOMPRESSION
+    start = clock();
+    current_time = get_current_timestamp();
+    sprintf(time_taken_str, "LZW started on %s", extracted_filename);
+    log_line = get_log_line(current_time, "LZW decompression", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    decompress_lzw(file_to_read, target_file_output);
+    end = clock();
+    current_time = get_current_timestamp();
+    sprintf(time_taken_str, "LZW finished on %s", extracted_filename);
+    log_line = get_log_line(current_time, "LZW decompression", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    time_taken = ((double) end - (double) start) / CLOCKS_PER_SEC;
+    sprintf(time_taken_str, "LZW on %s completed in %f seconds", extracted_filename, time_taken);
+    current_time = get_current_timestamp();
+    log_line = get_log_line(current_time, "Static Huffman Finished", time_taken_str);
+    fn(log_line);
+    free(current_time);
+    free(log_line);
+
+    free(extracted_filename);
+    free(target_file_output);
 }

@@ -7,6 +7,7 @@ GtkWindow *global_window = NULL;
 GtkWidget *compression_switch = NULL;
 GtkWidget *files_list = NULL;
 GtkWidget *spinner = NULL;
+GActionGroup *algorithm_action_group = NULL;
 char **files = NULL;
 char *current_file = NULL;
 ushort is_algorithm_running = 0;
@@ -162,6 +163,25 @@ int initiate_controls_container(GtkWidget *grid) {
     g_signal_connect(about_button, "clicked", G_CALLBACK(show_about_dialog), NULL);
     GtkWidget *begin_button = gtk_button_new_with_label("Begin");
     g_signal_connect(begin_button, "clicked", G_CALLBACK(begin_process), NULL);
+
+    // algorithm_action_group = gtk_action_group_new("AlgorithmActionGroup");
+    GtkWidget *algorithm_selection_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, INNER_PADDING);
+    gtk_box_append(GTK_BOX(algorithm_selection_box), gtk_label_new("Choose the algorithm:"));
+    GtkWidget *deflate_btn = gtk_check_button_new_with_label("Standard deflate (LZW + Adaptive Huffman)");
+    GtkWidget *static_deflate_btn = gtk_check_button_new_with_label("Static deflate (LZW + Static Huffman)");
+    GtkWidget *lzw_btn = gtk_check_button_new_with_label("LZW");
+    GtkWidget *adaptive_huffman_btn = gtk_check_button_new_with_label("Adaptive Huffman");
+    GtkWidget *static_huffman_btn = gtk_check_button_new_with_label("Static Huffman");
+    gtk_check_button_set_group(GTK_CHECK_BUTTON(static_deflate_btn), GTK_CHECK_BUTTON(deflate_btn));
+    gtk_check_button_set_group(GTK_CHECK_BUTTON(lzw_btn), GTK_CHECK_BUTTON(deflate_btn));
+    gtk_check_button_set_group(GTK_CHECK_BUTTON(adaptive_huffman_btn), GTK_CHECK_BUTTON(deflate_btn));
+    gtk_check_button_set_group(GTK_CHECK_BUTTON(static_huffman_btn), GTK_CHECK_BUTTON(deflate_btn));
+    gtk_box_append(GTK_BOX(algorithm_selection_box), deflate_btn);
+    gtk_box_append(GTK_BOX(algorithm_selection_box), static_deflate_btn);
+    gtk_box_append(GTK_BOX(algorithm_selection_box), lzw_btn);
+    gtk_box_append(GTK_BOX(algorithm_selection_box), adaptive_huffman_btn);
+    gtk_box_append(GTK_BOX(algorithm_selection_box), static_huffman_btn);
+    gtk_box_append(GTK_BOX(wrapper), algorithm_selection_box);
 
     GtkWidget *control_buttons_container = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, INNER_PADDING);
     gtk_box_append(GTK_BOX(control_buttons_container), spinner);
@@ -332,7 +352,7 @@ int compress_ui() {
             pthread_join(thread, NULL);
         }
         current_file = files[i];
-        pthread_create(&thread, NULL, algorithm_thread, (void *) deflate_compression);
+        pthread_create(&thread, NULL, algorithm_thread, (void *) lzw_compression);
     }
 
     return 0;
@@ -348,7 +368,7 @@ int decompress_ui() {
             pthread_join(thread, NULL);
         }
         current_file = files[i];
-        pthread_create(&thread, NULL, algorithm_thread, (void *) deflate_decompression);
+        pthread_create(&thread, NULL, algorithm_thread, (void *) lzw_decompression);
     }
 
     return 0;

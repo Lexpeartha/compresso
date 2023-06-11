@@ -306,6 +306,8 @@ void decompress_lzw(char *input_file_name, char *output_file_name) {
     free_array(tmp_arr);
     free_dictionary(dict);
     free_hash_table_lzw();
+    fclose(fp_write);
+    fclose(output_file);
     remove(input_file_name);
 }
 
