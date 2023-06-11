@@ -77,7 +77,6 @@ char *extract_path_from_compressed(char* string){
     for(int i = 0;i < slash_index;i++){
         name[i] = string[i];
         name[i+1] = '\0';
-
     }
 
     return name;
@@ -93,7 +92,9 @@ void deflate_compression(char *file_to_read, append_to_buffer_fn fn) {
 
     char time_taken_str[128];
     char *extracted_filename = extract_file_from_path(file_to_read);
+    char *path = extract_path_from_compressed(file_to_read);
     char new_path[256];
+    char old_path[256];
     double time_taken;
 
     // LZW COMPRESSION
@@ -105,7 +106,9 @@ void deflate_compression(char *file_to_read, append_to_buffer_fn fn) {
     free(current_time);
     free(log_line);
 
-    compress_lzw(file_to_read, filename_buffer);
+    strcpy(new_path, path);
+    strcat(new_path, filename_buffer);
+    compress_lzw(file_to_read, new_path);
     end = clock();
     current_time = get_current_timestamp();
     sprintf(time_taken_str, "LZW finished on %s", extracted_filename);
@@ -131,9 +134,9 @@ void deflate_compression(char *file_to_read, append_to_buffer_fn fn) {
     free(current_time);
     free(log_line);
 
-    strcpy(new_path, filename_buffer);
+    strcpy(old_path, new_path);
     strcat(new_path, ".bin"); // ADDING EXTENSION ON FINAL ALGORITHM
-    adaptive_huffman_encode(filename_buffer, new_path);
+    adaptive_huffman_encode(old_path, new_path);
     end = clock();
     current_time = get_current_timestamp();
     sprintf(time_taken_str, "Adaptive Huffman finished on %s", extracted_filename);
@@ -150,6 +153,7 @@ void deflate_compression(char *file_to_read, append_to_buffer_fn fn) {
     free(current_time);
     free(log_line);
 
+    free(path);
     free(extracted_filename);
 }
 
@@ -162,9 +166,8 @@ void deflate_decompression(char *file_to_read, append_to_buffer_fn fn) {
     char *current_time, *log_line;
 
     char time_taken_str[128], *path = extract_path_from_compressed(file_to_read);
-    ;
     char *extracted_filename = extract_file_from_path(file_to_read);
-    char new_path[256];
+    char new_path[256]; // TODO: change this
     double time_taken;
 
     // HUFFMAN DECOMPRESSION
