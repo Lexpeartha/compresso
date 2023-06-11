@@ -8,7 +8,6 @@ void generate_random_filename(char *filename_buffer) {
     const char *prefix = "tmpfile";
     int fd;
 
-
     size_t filename_len = strlen(prefix) + 10;
     char filename_template[filename_len + 1];
     snprintf(filename_template, filename_len + 1, "%s-XXXXXX", prefix);
@@ -83,6 +82,9 @@ char *extract_path_from_compressed(char *string) {
 }
 
 void deflate_compression(char *file_to_read, append_to_buffer_fn fn) {
+    if (file_to_read == NULL)
+        return;
+
     char filename_buffer[256];
     generate_random_filename(filename_buffer);
 
@@ -164,6 +166,9 @@ void deflate_compression(char *file_to_read, append_to_buffer_fn fn) {
 }
 
 void deflate_decompression(char *file_to_read, append_to_buffer_fn fn) {
+    if (file_to_read == NULL)
+        return;
+
     char filename_buffer[256];
     generate_random_filename(filename_buffer);
 

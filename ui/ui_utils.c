@@ -6,7 +6,14 @@ GtkTextBuffer *log_buffer = NULL;
 GtkWindow *global_window = NULL;
 GtkWidget *compression_switch = NULL;
 GtkWidget *files_list = NULL;
+GtkWidget *spinner = NULL;
 char **files = NULL;
+char *current_file = NULL;
+ushort is_algorithm_running = 0;
+
+// Values needed for parallelization
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 
 int setup_ui(GtkWidget *window) {
     // Initiates GridLayout
@@ -150,12 +157,14 @@ int initiate_controls_container(GtkWidget *grid) {
     gtk_widget_set_margin_start(wrapper, INNER_PADDING);
     gtk_widget_set_margin_end(wrapper, INNER_PADDING);
 
+    spinner = gtk_spinner_new();
     GtkWidget *about_button = gtk_button_new_with_label("About");
     g_signal_connect(about_button, "clicked", G_CALLBACK(show_about_dialog), NULL);
     GtkWidget *begin_button = gtk_button_new_with_label("Begin");
     g_signal_connect(begin_button, "clicked", G_CALLBACK(begin_process), NULL);
 
     GtkWidget *control_buttons_container = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, INNER_PADDING);
+    gtk_box_append(GTK_BOX(control_buttons_container), spinner);
     gtk_box_append(GTK_BOX(control_buttons_container), about_button);
     gtk_box_append(GTK_BOX(control_buttons_container), begin_button);
     gtk_widget_set_halign(control_buttons_container, GTK_ALIGN_END);
@@ -176,7 +185,7 @@ void append_to_log_buffer(char *text) {
     gtk_text_buffer_insert_at_cursor(log_buffer, text, -1);
 }
 
-void finish_save_dialog(GObject* source_object, GAsyncResult* res, gpointer text) {
+void finish_save_dialog(GObject *source_object, GAsyncResult *res, gpointer text) {
     GFile *save_file = NULL;
     save_file = gtk_file_dialog_save_finish(GTK_FILE_DIALOG(source_object), res, NULL);
 
@@ -225,7 +234,7 @@ void update_files_list() {
     }
 
     for (int i = 0; files[i] != NULL; i++) {
-        g_print("File number %d selected: %s\n", i + 1, files[i]);
+        // g_print("File number %d selected: %s\n", i + 1, files[i]);
         gtk_list_box_append(GTK_LIST_BOX(files_list), gtk_label_new(files[i]));
     }
 }
@@ -257,7 +266,7 @@ void add_file(char *file) {
     update_files_list();
 }
 
-void finish_open_multiple_dialog(GObject* source_object, GAsyncResult* res, gpointer user_data) {
+void finish_open_multiple_dialog(GObject *source_object, GAsyncResult *res, gpointer user_data) {
     GListModel *selected_files = gtk_file_dialog_open_multiple_finish(GTK_FILE_DIALOG(source_object),
                                                                       res,
                                                                       NULL);
@@ -276,11 +285,35 @@ void show_add_files_dialog() {
     gtk_file_dialog_open_multiple(dialog, global_window, NULL, finish_open_multiple_dialog, NULL);
 }
 
+void *algorithm_thread(void *arg) {
+    if (current_file == NULL)
+        return NULL;
+
+    algorithm_fn algorithm = (algorithm_fn) arg;
+    is_algorithm_running = 1;
+    gtk_spinner_set_spinning(GTK_SPINNER(spinner), TRUE);
+
+    // ALGORITHM LOGIC HERE
+    algorithm(current_file, append_to_log_buffer);
+
+    pthread_mutex_lock(&mutex);
+    pthread_cond_signal(&cond);
+    pthread_mutex_unlock(&mutex);
+
+    is_algorithm_running = 0;
+    gtk_spinner_set_spinning(GTK_SPINNER(spinner), FALSE);
+
+    pthread_exit(NULL);
+}
+
 void begin_process() {
     if (files[0] == NULL) {
         g_print("No files selected\n");
         return;
     }
+
+    if (is_algorithm_running)
+        return;
 
     if (!gtk_switch_get_active(GTK_SWITCH(compression_switch))) {
         compress_ui();
@@ -290,16 +323,32 @@ void begin_process() {
 }
 
 int compress_ui() {
+    pthread_t thread;
+    current_file = NULL;
+
     for (int i = 0; files[i] != NULL; i++) {
-        deflate_compression(files[i], append_to_log_buffer);
+        if (is_algorithm_running) {
+            // Waiting for the previous thread to finish if the algorithm is already running
+            pthread_join(thread, NULL);
+        }
+        current_file = files[i];
+        pthread_create(&thread, NULL, algorithm_thread, (void *) deflate_compression);
     }
 
     return 0;
 }
 
 int decompress_ui() {
+    pthread_t thread;
+    current_file = NULL;
+
     for (int i = 0; files[i] != NULL; i++) {
-        deflate_decompression(files[i], append_to_log_buffer);
+        if (is_algorithm_running) {
+            // Waiting for the previous thread to finish if the algorithm is already running
+            pthread_join(thread, NULL);
+        }
+        current_file = files[i];
+        pthread_create(&thread, NULL, algorithm_thread, (void *) deflate_decompression);
     }
 
     return 0;
