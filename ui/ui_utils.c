@@ -11,6 +11,7 @@ GActionGroup *algorithm_action_group = NULL;
 char **files = NULL;
 char *current_file = NULL;
 ushort is_algorithm_running = 0;
+GtkWidget *deflate_btn = NULL, *static_deflate_btn = NULL, *static_huffman_btn = NULL, *adaptive_huffman_btn = NULL, *lzw_btn = NULL;
 
 // Values needed for parallelization
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -167,11 +168,11 @@ int initiate_controls_container(GtkWidget *grid) {
     // algorithm_action_group = gtk_action_group_new("AlgorithmActionGroup");
     GtkWidget *algorithm_selection_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, INNER_PADDING);
     gtk_box_append(GTK_BOX(algorithm_selection_box), gtk_label_new("Choose the algorithm:"));
-    GtkWidget *deflate_btn = gtk_check_button_new_with_label("Standard deflate (LZW + Adaptive Huffman)");
-    GtkWidget *static_deflate_btn = gtk_check_button_new_with_label("Static deflate (LZW + Static Huffman)");
-    GtkWidget *lzw_btn = gtk_check_button_new_with_label("LZW");
-    GtkWidget *adaptive_huffman_btn = gtk_check_button_new_with_label("Adaptive Huffman");
-    GtkWidget *static_huffman_btn = gtk_check_button_new_with_label("Static Huffman");
+    deflate_btn = gtk_check_button_new_with_label("Standard deflate (LZW + Adaptive Huffman)");
+    static_deflate_btn = gtk_check_button_new_with_label("Static deflate (LZW + Static Huffman)");
+    lzw_btn = gtk_check_button_new_with_label("LZW");
+    adaptive_huffman_btn = gtk_check_button_new_with_label("Adaptive Huffman");
+    static_huffman_btn = gtk_check_button_new_with_label("Static Huffman");
     gtk_check_button_set_group(GTK_CHECK_BUTTON(static_deflate_btn), GTK_CHECK_BUTTON(deflate_btn));
     gtk_check_button_set_group(GTK_CHECK_BUTTON(lzw_btn), GTK_CHECK_BUTTON(deflate_btn));
     gtk_check_button_set_group(GTK_CHECK_BUTTON(adaptive_huffman_btn), GTK_CHECK_BUTTON(deflate_btn));
@@ -182,6 +183,7 @@ int initiate_controls_container(GtkWidget *grid) {
     gtk_box_append(GTK_BOX(algorithm_selection_box), adaptive_huffman_btn);
     gtk_box_append(GTK_BOX(algorithm_selection_box), static_huffman_btn);
     gtk_box_append(GTK_BOX(wrapper), algorithm_selection_box);
+    gtk_check_button_set_active(GTK_CHECK_BUTTON(deflate_btn), TRUE);
 
     GtkWidget *control_buttons_container = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, INNER_PADDING);
     gtk_box_append(GTK_BOX(control_buttons_container), spinner);
@@ -352,7 +354,16 @@ int compress_ui() {
             pthread_join(thread, NULL);
         }
         current_file = files[i];
-        pthread_create(&thread, NULL, algorithm_thread, (void *) lzw_compression);
+        if (gtk_check_button_get_active(GTK_CHECK_BUTTON(deflate_btn)))
+            pthread_create(&thread, NULL, algorithm_thread, (void *) deflate_compression);
+        else if (gtk_check_button_get_active(GTK_CHECK_BUTTON(static_deflate_btn)))
+            pthread_create(&thread, NULL, algorithm_thread, (void *) deflate_static_compression);
+        else if (gtk_check_button_get_active(GTK_CHECK_BUTTON(static_huffman_btn)))
+            pthread_create(&thread, NULL, algorithm_thread, (void *) static_huffman_compression);
+        else if (gtk_check_button_get_active(GTK_CHECK_BUTTON(adaptive_huffman_btn)))
+            pthread_create(&thread, NULL, algorithm_thread, (void *) adaptive_huffman_compression);
+        else if (gtk_check_button_get_active(GTK_CHECK_BUTTON(lzw_btn)))
+            pthread_create(&thread, NULL, algorithm_thread, (void *) lzw_compression);
     }
 
     return 0;
@@ -368,7 +379,16 @@ int decompress_ui() {
             pthread_join(thread, NULL);
         }
         current_file = files[i];
-        pthread_create(&thread, NULL, algorithm_thread, (void *) lzw_decompression);
+        if (gtk_check_button_get_active(GTK_CHECK_BUTTON(deflate_btn)))
+            pthread_create(&thread, NULL, algorithm_thread, (void *) deflate_decompression);
+        else if (gtk_check_button_get_active(GTK_CHECK_BUTTON(static_deflate_btn)))
+            pthread_create(&thread, NULL, algorithm_thread, (void *) deflate_static_decompression);
+        else if (gtk_check_button_get_active(GTK_CHECK_BUTTON(static_huffman_btn)))
+            pthread_create(&thread, NULL, algorithm_thread, (void *) static_huffman_decompression);
+        else if (gtk_check_button_get_active(GTK_CHECK_BUTTON(adaptive_huffman_btn)))
+            pthread_create(&thread, NULL, algorithm_thread, (void *) adaptive_huffman_decompression);
+        else if (gtk_check_button_get_active(GTK_CHECK_BUTTON(lzw_btn)))
+            pthread_create(&thread, NULL, algorithm_thread, (void *) lzw_decompression);
     }
 
     return 0;
