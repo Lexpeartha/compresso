@@ -6,6 +6,7 @@
 
 hash_entry_huffman *hash_table_huffman = NULL;
 output_hash *output_hash_table = NULL;
+int i = 0;
 
 int heap_left_child(int index) {
     return (index * 2) + 1;
@@ -408,7 +409,11 @@ HeapNode *navigate2(HeapNode *root, const uint8_t *buffer, int buffer_len) {
 int static_huffman_decode(char *filename, char *output_file) {
     printf("\n\nDECOMPRESSION.");
 
-    hash_entry_huffman *novi = import_hash_table("hes_tabela");
+    i = 0;
+
+    char new_hash_name[512];
+    sprintf(new_hash_name, "%s-hh", output_file);
+    hash_entry_huffman *novi = import_hash_table(new_hash_name);
     // delete_file2(filename);
 
     // form the tree
@@ -488,6 +493,8 @@ int static_huffman_decode(char *filename, char *output_file) {
     free_hash_table_hash_entry(novi);
     free_heap(min_heap);
 
+    novi = NULL;
+
     fclose(in);
     fclose(out);
 
@@ -525,6 +532,8 @@ int static_huffman_encode(char filename[150], char *output_file) {
         printf("Can't open file.\n");
         exit(1);
     }
+
+    hash_table_huffman = NULL;
 
     // reading from a file
     uint8_t data;
@@ -596,14 +605,19 @@ int static_huffman_encode(char filename[150], char *output_file) {
     fwrite(&useful_bits, sizeof(uint8_t), 1, out);
     fclose(out);
 
-    export_hash_table(hash_table_huffman, "hes_tabela");
+    char new_hash_name[512];
+    sprintf(new_hash_name, "%s-hh", filename);
+    export_hash_table(hash_table_huffman, new_hash_name);
 
 
     free_hash_table_huffman(output_hash_table);
     free(byte_buffer);
     free_tree(static_huffman_root);
     free_hash_table_hash_entry(hash_table_huffman);
+
     free_heap(min_heap);
+
+    output_hash_table = NULL;
 
     // FOR TESTING PURPOSES
     //static_huffman_decode("static_decompressed");

@@ -243,6 +243,7 @@ void delete_file(char *filename) {
     }
 }
 
+
 // a function that 'extends' the NYT node; NYT becomes an internal node R, the left child becomes
 // the new NYT, and the right one is for the symbol S
 void spawn_node(Node *root, uint8_t symbol) {
