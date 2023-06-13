@@ -1,13 +1,21 @@
 #include "ui_utils.h"
-#include "../core/log.h"
-#include "../core/lzw.h"
+#include "deflate.h"
 
 // Variables I need to access from multiple places
 GtkTextBuffer *log_buffer = NULL;
 GtkWindow *global_window = NULL;
 GtkWidget *compression_switch = NULL;
 GtkWidget *files_list = NULL;
+GtkWidget *spinner = NULL;
+GActionGroup *algorithm_action_group = NULL;
 char **files = NULL;
+char *current_file = NULL;
+ushort is_algorithm_running = 0;
+GtkWidget *deflate_btn = NULL, *static_deflate_btn = NULL, *static_huffman_btn = NULL, *adaptive_huffman_btn = NULL, *lzw_btn = NULL;
+
+// Values needed for parallelization
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 
 int setup_ui(GtkWidget *window) {
     // Initiates GridLayout
@@ -151,12 +159,34 @@ int initiate_controls_container(GtkWidget *grid) {
     gtk_widget_set_margin_start(wrapper, INNER_PADDING);
     gtk_widget_set_margin_end(wrapper, INNER_PADDING);
 
+    spinner = gtk_spinner_new();
     GtkWidget *about_button = gtk_button_new_with_label("About");
     g_signal_connect(about_button, "clicked", G_CALLBACK(show_about_dialog), NULL);
     GtkWidget *begin_button = gtk_button_new_with_label("Begin");
     g_signal_connect(begin_button, "clicked", G_CALLBACK(begin_process), NULL);
 
+    // algorithm_action_group = gtk_action_group_new("AlgorithmActionGroup");
+    GtkWidget *algorithm_selection_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, INNER_PADDING);
+    gtk_box_append(GTK_BOX(algorithm_selection_box), gtk_label_new("Choose the algorithm:"));
+    deflate_btn = gtk_check_button_new_with_label("Standard deflate (LZW + Adaptive Huffman)");
+    static_deflate_btn = gtk_check_button_new_with_label("Static deflate (LZW + Static Huffman)");
+    lzw_btn = gtk_check_button_new_with_label("LZW");
+    adaptive_huffman_btn = gtk_check_button_new_with_label("Adaptive Huffman");
+    static_huffman_btn = gtk_check_button_new_with_label("Static Huffman");
+    gtk_check_button_set_group(GTK_CHECK_BUTTON(static_deflate_btn), GTK_CHECK_BUTTON(deflate_btn));
+    gtk_check_button_set_group(GTK_CHECK_BUTTON(lzw_btn), GTK_CHECK_BUTTON(deflate_btn));
+    gtk_check_button_set_group(GTK_CHECK_BUTTON(adaptive_huffman_btn), GTK_CHECK_BUTTON(deflate_btn));
+    gtk_check_button_set_group(GTK_CHECK_BUTTON(static_huffman_btn), GTK_CHECK_BUTTON(deflate_btn));
+    gtk_box_append(GTK_BOX(algorithm_selection_box), deflate_btn);
+    gtk_box_append(GTK_BOX(algorithm_selection_box), static_deflate_btn);
+    gtk_box_append(GTK_BOX(algorithm_selection_box), lzw_btn);
+    gtk_box_append(GTK_BOX(algorithm_selection_box), adaptive_huffman_btn);
+    gtk_box_append(GTK_BOX(algorithm_selection_box), static_huffman_btn);
+    gtk_box_append(GTK_BOX(wrapper), algorithm_selection_box);
+    gtk_check_button_set_active(GTK_CHECK_BUTTON(deflate_btn), TRUE);
+
     GtkWidget *control_buttons_container = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, INNER_PADDING);
+    gtk_box_append(GTK_BOX(control_buttons_container), spinner);
     gtk_box_append(GTK_BOX(control_buttons_container), about_button);
     gtk_box_append(GTK_BOX(control_buttons_container), begin_button);
     gtk_widget_set_halign(control_buttons_container, GTK_ALIGN_END);
@@ -177,7 +207,7 @@ void append_to_log_buffer(char *text) {
     gtk_text_buffer_insert_at_cursor(log_buffer, text, -1);
 }
 
-void finish_save_dialog(GObject* source_object, GAsyncResult* res, gpointer text) {
+void finish_save_dialog(GObject *source_object, GAsyncResult *res, gpointer text) {
     GFile *save_file = NULL;
     save_file = gtk_file_dialog_save_finish(GTK_FILE_DIALOG(source_object), res, NULL);
 
@@ -226,7 +256,7 @@ void update_files_list() {
     }
 
     for (int i = 0; files[i] != NULL; i++) {
-        g_print("File number %d selected: %s\n", i + 1, files[i]);
+        // g_print("File number %d selected: %s\n", i + 1, files[i]);
         gtk_list_box_append(GTK_LIST_BOX(files_list), gtk_label_new(files[i]));
     }
 }
@@ -258,7 +288,7 @@ void add_file(char *file) {
     update_files_list();
 }
 
-void finish_open_multiple_dialog(GObject* source_object, GAsyncResult* res, gpointer user_data) {
+void finish_open_multiple_dialog(GObject *source_object, GAsyncResult *res, gpointer user_data) {
     GListModel *selected_files = gtk_file_dialog_open_multiple_finish(GTK_FILE_DIALOG(source_object),
                                                                       res,
                                                                       NULL);
@@ -277,63 +307,25 @@ void show_add_files_dialog() {
     gtk_file_dialog_open_multiple(dialog, global_window, NULL, finish_open_multiple_dialog, NULL);
 }
 
-char* extract_file_from_path(char* string){
-    int len = 0;
-    int slash_index = 0;
-    while(1){
-        if(string[len] == '\0')
-            break;
-        if(string[len] == '/')
-            slash_index = len;
-        len++;
-    }
-    char* name = malloc(sizeof(char) * len);
-    int j = 0;
-    for(int i = slash_index+1;i < len;i++){
-        name[j] = string[i];
-        name[j+1] = '\0';
-        j++;
-    }
+void *algorithm_thread(void *arg) {
+    if (current_file == NULL)
+        return NULL;
 
-    return name;
+    algorithm_fn algorithm = (algorithm_fn) arg;
+    is_algorithm_running = 1;
+    gtk_spinner_set_spinning(GTK_SPINNER(spinner), TRUE);
 
-}
-char *extract_path_from_path(char* string){
-    int len = 0;
-    int slash_index = 0;
-    while(1){
-        if(string[len] == '\0')
-            break;
-        if(string[len] == '/')
-            slash_index = len;
-        len++;
-    }
-    char* name = malloc(sizeof(char) * len);
-    for(int i = 0;i < slash_index;i++){
-        name[i] = string[i];
-        name[i+1] = '\0';
-    }
+    // ALGORITHM LOGIC HERE
+    algorithm(current_file, append_to_log_buffer);
 
-    return name;
-}
-char *extract_path_from_compressed(char* string){
-    int len = 0;
-    int slash_index = 0;
-    while(1){
-        if(string[len] == '\0')
-            break;
-        if(string[len] == '.')
-            slash_index = len;
-        len++;
-    }
-    char* name = malloc(sizeof(char)*len);
-    for(int i = 0;i < slash_index;i++){
-        name[i] = string[i];
-        name[i+1] = '\0';
+    pthread_mutex_lock(&mutex);
+    pthread_cond_signal(&cond);
+    pthread_mutex_unlock(&mutex);
 
-    }
+    is_algorithm_running = 0;
+    gtk_spinner_set_spinning(GTK_SPINNER(spinner), FALSE);
 
-    return name;
+    pthread_exit(NULL);
 }
 
 void begin_process() {
@@ -341,6 +333,9 @@ void begin_process() {
         g_print("No files selected\n");
         return;
     }
+
+    if (is_algorithm_running)
+        return;
 
     if (!gtk_switch_get_active(GTK_SWITCH(compression_switch))) {
         compress_ui();
@@ -350,88 +345,50 @@ void begin_process() {
 }
 
 int compress_ui() {
-    // Start counting time
-    clock_t start, end;
-    char *current_time, *log_line;
+    pthread_t thread;
+    current_file = NULL;
 
     for (int i = 0; files[i] != NULL; i++) {
-        char time_taken_str[128];
-        char *filename = files[i];
-        char *extracted_filename = extract_file_from_path(filename);
-
-        start = clock();
-        current_time = get_current_timestamp();
-        sprintf(time_taken_str, "LZW started on %s", extracted_filename);
-        log_line = get_log_line(current_time, "LZW compression",time_taken_str);
-        append_to_log_buffer(log_line);
-        free(current_time);
-        free(log_line);
-
-
-        char new_path[256];
-        strcpy(new_path, filename);
-        strcat(new_path, ".lzw");
-        compress_lzw(filename, new_path);
-        end = clock();
-        current_time = get_current_timestamp();
-        sprintf(time_taken_str, "LZW finished on %s", extracted_filename);
-        log_line = get_log_line(current_time, "LZW compression", time_taken_str);
-        append_to_log_buffer(log_line);
-        free(current_time);
-        free(log_line);
-
-        double time_taken = ((double)end - (double)start) / CLOCKS_PER_SEC;
-        sprintf(time_taken_str, "LZW on %s completed in %f seconds", extracted_filename, time_taken);
-        current_time = get_current_timestamp();
-        log_line = get_log_line(current_time, "LZW Finished", time_taken_str);
-        append_to_log_buffer(log_line);
-        free(current_time);
-        free(log_line);
-
-        free(extracted_filename);
+        if (is_algorithm_running) {
+            // Waiting for the previous thread to finish if the algorithm is already running
+            pthread_join(thread, NULL);
+        }
+        current_file = files[i];
+        if (gtk_check_button_get_active(GTK_CHECK_BUTTON(deflate_btn)))
+            pthread_create(&thread, NULL, algorithm_thread, (void *) deflate_compression);
+        else if (gtk_check_button_get_active(GTK_CHECK_BUTTON(static_deflate_btn)))
+            pthread_create(&thread, NULL, algorithm_thread, (void *) deflate_static_compression);
+        else if (gtk_check_button_get_active(GTK_CHECK_BUTTON(static_huffman_btn)))
+            pthread_create(&thread, NULL, algorithm_thread, (void *) static_huffman_compression);
+        else if (gtk_check_button_get_active(GTK_CHECK_BUTTON(adaptive_huffman_btn)))
+            pthread_create(&thread, NULL, algorithm_thread, (void *) adaptive_huffman_compression);
+        else if (gtk_check_button_get_active(GTK_CHECK_BUTTON(lzw_btn)))
+            pthread_create(&thread, NULL, algorithm_thread, (void *) lzw_compression);
     }
 
     return 0;
 }
 
 int decompress_ui() {
-    // Start counting time
-    clock_t start, end;
-    char *current_time, *log_line;
+    pthread_t thread;
+    current_file = NULL;
 
     for (int i = 0; files[i] != NULL; i++) {
-        char time_taken_str[128];
-        char *filename = files[i];
-        char *extracted_filename = extract_file_from_path(filename);
-
-        start = clock();
-        current_time = get_current_timestamp();
-        sprintf(time_taken_str, "LZW started on %s", extracted_filename);
-        log_line = get_log_line(current_time, "LZW decompression",time_taken_str);
-        append_to_log_buffer(log_line);
-        free(current_time);
-        free(log_line);
-
-        char *path = extract_path_from_compressed(filename);
-        decompress_lzw(filename, path);
-        free(path);
-        end = clock();
-        current_time = get_current_timestamp();
-        sprintf(time_taken_str, "LZW finished on %s", extracted_filename);
-        log_line = get_log_line(current_time, "LZW decompression", time_taken_str);
-        append_to_log_buffer(log_line);
-        free(current_time);
-        free(log_line);
-
-        double time_taken = ((double)end - (double)start) / CLOCKS_PER_SEC;
-        sprintf(time_taken_str, "LZW on %s completed in %f seconds", extracted_filename, time_taken);
-        current_time = get_current_timestamp();
-        log_line = get_log_line(current_time, "LZW Finished", time_taken_str);
-        append_to_log_buffer(log_line);
-        free(current_time);
-        free(log_line);
-
-        free(extracted_filename);
+        if (is_algorithm_running) {
+            // Waiting for the previous thread to finish if the algorithm is already running
+            pthread_join(thread, NULL);
+        }
+        current_file = files[i];
+        if (gtk_check_button_get_active(GTK_CHECK_BUTTON(deflate_btn)))
+            pthread_create(&thread, NULL, algorithm_thread, (void *) deflate_decompression);
+        else if (gtk_check_button_get_active(GTK_CHECK_BUTTON(static_deflate_btn)))
+            pthread_create(&thread, NULL, algorithm_thread, (void *) deflate_static_decompression);
+        else if (gtk_check_button_get_active(GTK_CHECK_BUTTON(static_huffman_btn)))
+            pthread_create(&thread, NULL, algorithm_thread, (void *) static_huffman_decompression);
+        else if (gtk_check_button_get_active(GTK_CHECK_BUTTON(adaptive_huffman_btn)))
+            pthread_create(&thread, NULL, algorithm_thread, (void *) adaptive_huffman_decompression);
+        else if (gtk_check_button_get_active(GTK_CHECK_BUTTON(lzw_btn)))
+            pthread_create(&thread, NULL, algorithm_thread, (void *) lzw_decompression);
     }
 
     return 0;
